@@ -26,7 +26,6 @@ class TrackGen:
         #in drifter here, such as the pygame screen, resolution, etc. idk a better way to do this.
         self.dft = dft
         
-        
         self.mode = 'intro'
         self.MAXANGLE = .3 #in radians
         self.MAXDISTANCE = 30
@@ -38,7 +37,7 @@ class TrackGen:
         self.angle_limit_h = (0,0)
         self.angle_limit_l = (0,0)
         
-        self.intro_message = "Welcome to the track generator!\n\n" \
+        self.intro_message = "Welcome to the track generator!\n" \
                             "Keep all parts of your track on-screen.\n"\
                             "Do not let your centerline or walls cross eachother.\n" \
                             "The track must form a complete loop.\n" \
@@ -77,15 +76,14 @@ class TrackGen:
                 
                 if event.key == K_RETURN and self.mode == 'done':
                     #good luck unravelling what this does, just be glad it works.
-                    self.points = [list(int(b) for b in i) for i in self.points]
-                    self.lbound = [list(int(b) for b in i) for i in self.lbound]
-                    self.rbound = [list(int(b) for b in i) for i in self.rbound]
+                    self.points = [list(round(b) for b in i) for i in self.points]
+                    self.lbound = [list(round(b) for b in i) for i in self.lbound]
+                    self.rbound = [list(round(b) for b in i) for i in self.rbound]
                     
                     cpts = []
                     for pair in self.checkpoints:
-                        cpts.append(list(((int(pair[0][0]), int(pair[0][1])), (int(pair[1][0]), int(pair[1][1])))))
+                        cpts.append(list(((round(pair[0][0]), round(pair[0][1])), (round(pair[1][0]), round(pair[1][1])))))                    
                     
-                    #self.checkpoints = [tuple((int(c) for c in b) for b in i) for i in self.checkpoints]
                     return (self.points, self.lbound, self.rbound, cpts)
                     
                 
@@ -146,7 +144,6 @@ class TrackGen:
         if self.mode == 'done':
             for pair in self.checkpoints:
                 pygame.draw.line(self.dft.screen, THECOLORS['green'], pair[0], pair[1], 2)
-            
             self.dft.screen.blit(self.dft.font.render("If you're happy with your track, press enter. Otherwise press delete", 1, THECOLORS["black"]), (100,400))
             
         
@@ -157,7 +154,7 @@ class TrackGen:
         
     def tfrm(self, point):
         '''transforms points from meters to pixels. also flips y axis for pygame reasons.'''
-        return ( int(point[0]*PPM), int(SCREEN_HEIGHT - point[1]*PPM))
+        return ( round(point[0]*PPM), round(SCREEN_HEIGHT - point[1]*PPM))
         
         
     def new_point(self, click):
@@ -175,8 +172,8 @@ class TrackGen:
             
             #make right and left boundaries
             self.ud = (self.points[-1]-self.points[-2])/(np.linalg.norm(self.points[-1]-self.points[-2]))
-            self.lbound.append([int(i*self.WIDTH) for i in self.rotate(self.ud,np.pi/2)] + self.points[-2])
-            self.rbound.append([int(i*self.WIDTH) for i in self.rotate(self.ud,-np.pi/2)] + self.points[-2])
+            self.lbound.append([round(i*self.WIDTH) for i in self.rotate(self.ud,np.pi/2)] + self.points[-2])
+            self.rbound.append([round(i*self.WIDTH) for i in self.rotate(self.ud,-np.pi/2)] + self.points[-2])
         
         else:
             self.points.append(self.get_vp())
@@ -185,12 +182,12 @@ class TrackGen:
             self.get_angle_limits()
             
             #make right and left boundaries
-            self.lbound.append([int(i*self.WIDTH) for i in self.rotate(self.ud,np.pi/2)] + self.points[-2])
-            self.rbound.append([int(i*self.WIDTH) for i in self.rotate(self.ud,-np.pi/2)] + self.points[-2])
+            self.lbound.append([round(i*self.WIDTH) for i in self.rotate(self.ud,np.pi/2)] + self.points[-2])
+            self.rbound.append([round(i*self.WIDTH) for i in self.rotate(self.ud,-np.pi/2)] + self.points[-2])
             
             
             #check if this last point can complete the track:
-            if np.linalg.norm(self.points[0] - self.points[-1]) < self.MAXDISTANCE*2:
+            if np.linalg.norm(self.points[0] - self.points[-1]) < self.MAXDISTANCE*1.3:
 
                 #Get angle between two unit vectors. Dont ask how it works.
                 turn = math.atan2(self.ud[0]*self.iud[1] - self.ud[1]*self.iud[0], self.ud[0]*self.iud[0] + self.ud[1]*self.iud[1])
@@ -236,8 +233,8 @@ class TrackGen:
         return math.atan2((p2-p1)[1], (p2-p1)[0])
     
     def get_angle_limits(self):
-        self.angle_limit_h = (int(self.MAXDISTANCE*math.cos(self.direction + self.MAXANGLE)), int(self.MAXDISTANCE*math.sin(self.direction + self.MAXANGLE))) + self.points[-1]
-        self.angle_limit_l = (int(self.MAXDISTANCE*math.cos(self.direction - self.MAXANGLE)), int(self.MAXDISTANCE*math.sin(self.direction - self.MAXANGLE))) + self.points[-1]
+        self.angle_limit_h = (round(self.MAXDISTANCE*math.cos(self.direction + self.MAXANGLE)), round(self.MAXDISTANCE*math.sin(self.direction + self.MAXANGLE))) + self.points[-1]
+        self.angle_limit_l = (round(self.MAXDISTANCE*math.cos(self.direction - self.MAXANGLE)), round(self.MAXDISTANCE*math.sin(self.direction - self.MAXANGLE))) + self.points[-1]
         
     def rotate(self, vec, theta):
         '''rotates a vector vec ccw by theta radians'''
@@ -266,7 +263,7 @@ class TrackGen:
         '''takes the three lists of points (rbound, lbound, points) and generates
         all the checkpoints for the drifter in a new list called self.checkpoints'''
         
-        GATESPERPOINT = 10 #number of gates drawn per point set in self.points
+        GATESPERPOINT = 5 #number of gates drawn per point set in self.points
         self.checkpoints = []
             
         for i in range(len(self.points)-1):
@@ -288,10 +285,13 @@ class TrackGen:
             lastr = self.rbound[i]
             
         #now do the checkpoints between the last and first points in the lists
-        xleft = np.linspace(self.lbound[0][0], self.lbound[-1][0], GATESPERPOINT*2).astype(int)
-        yleft = np.linspace(self.lbound[0][1], self.lbound[-1][1], GATESPERPOINT*2).astype(int)
-        xright = np.linspace(self.rbound[0][0], self.rbound[-1][0], GATESPERPOINT*2).astype(int)
-        yright = np.linspace(self.rbound[0][1], self.rbound[-1][1], GATESPERPOINT*2).astype(int)
+        FUDGEFACTOR = np.linalg.norm(self.points[0]-self.points[-2])/self.MAXDISTANCE
+        #fudge factor is a measure of how much longer/shorter the final point is from the first point
+        #used to make sure gates are evenly spaced even in the last segment
+        xleft = np.linspace(self.lbound[-1][0], self.lbound[0][0], round(GATESPERPOINT*FUDGEFACTOR)).astype(int)
+        yleft = np.linspace(self.lbound[-1][1], self.lbound[0][1], round(GATESPERPOINT*FUDGEFACTOR)).astype(int)
+        xright = np.linspace(self.rbound[-1][0], self.rbound[0][0], round(GATESPERPOINT*FUDGEFACTOR)).astype(int)
+        yright = np.linspace(self.rbound[-1][1], self.rbound[0][1], round(GATESPERPOINT*FUDGEFACTOR)).astype(int)
         h = zip(zip(xleft,yleft), zip(xright,yright))
         
         for j in h:

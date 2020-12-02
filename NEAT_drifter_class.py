@@ -4,6 +4,7 @@ Created on Thu Nov  5 15:26:44 2020
 
 @author: Nick Brusco
 """
+
 import Box2D  # The main library
 # Box2D.b2 maps Box2D.b2Vec2 to vec2 (and so on)
 from Box2D.b2 import (world, polygonShape, staticBody, dynamicBody, vec2, chainShape, rayCastCallback)
@@ -13,19 +14,24 @@ from pygame.color import THECOLORS
 import pymunk.pygame_util
 import numpy as np
 import random
-from Box2D.examples.raycast import *
+
+from Box2D.examples.raycast import RayCastClosestCallback, b2RayCastCallback
 import sys
+
 
 class Drifter:
     name = "Drifter"
     description = "Trains a neural net to race a car around a track"
     
     def __init__(self):
+        
+        self.largest = 0
+        
         # --- constants ---
-        self.PPM = 1.0 #20.0  # pixels per meter
+        self.PPM = 10.0  # pixels per meter
         self.TARGET_FPS = 60
         self.TIME_STEP = 1.0 / self.TARGET_FPS
-        self.SCREEN_WIDTH, self.SCREEN_HEIGHT = 1500, 900
+        self.SCREEN_WIDTH, self.SCREEN_HEIGHT = 1300, 700
         
         # --- pygame setup ---
         pygame.init()
@@ -55,11 +61,11 @@ class Drifter:
         #for whiskers
         #         angles, lengths, intercept
         self.rays = np.array( 
-                [[-np.pi/2, 500,     100],
-                [-np.pi/4,  500,     100],
-                [0,         500,     100],
-                [np.pi/4,   500,     100],
-                [np.pi/2,   500,     100]])
+                [[-np.pi/2, 100,     100],
+                [-np.pi/4,  100,     100],
+                [0,         100,     100],
+                [np.pi/4,   100,     100],
+                [np.pi/2,   100,     100]])
         
         #checkpoints, overwritten when using trackgen
         self.cp = 0
@@ -67,10 +73,9 @@ class Drifter:
 
         # Create world, car, track. This gets overwritten when not in manual mode so make sure you carry over any changes here to init_track
         self.world = world(gravity=(0, 0), doSleep=True)
-        #self.world.setVelocityThreshold(1000000.0);
-        self.car = self.world.CreateDynamicBody(position=(200,200), angle= np.pi)#, linearDamping=.1, angularDamping = 6)
+        self.car = self.world.CreateDynamicBody(position=(200/self.PPM,200/self.PPM), angle= 0, linearDamping=.3, angularDamping = 6)
         self.car_color = 'blue'
-        self.box = self.car.CreatePolygonFixture(box=(4, 2), density=.4, friction=0.002)
+        self.box = self.car.CreatePolygonFixture(box=(1, .5), density=1, friction=0.002)
         #self.box.massData.center = vec2(0,-10) #set center of 
         
         self.tracks = []
@@ -154,43 +159,56 @@ class Drifter:
         if 'd' in self.pressed_keys and not action[3]:
             self.pressed_keys.remove('d')
             self.time_pressed['d'] = 0
-           
+                   
+        
         #handle movement
-        speed = self.car.GetWorldVector((1,0)).dot(self.car.linearVelocity)
+        #the next 30 lines took days of tuning to get right. dont fuck with it.
+        fw_speed = (self.car.GetWorldVector((1,0)).dot(self.car.linearVelocity))
         
         for key in self.pressed_keys:
             if key == 'w':
-                self.car.ApplyForce(self.car.GetWorldVector(localVector=(-2000.0, 0.0)), self.car.GetWorldPoint(localPoint=(0.0, 0.0)), True)
+                self.car.ApplyForce(self.car.GetWorldVector(localVector=(120.0, 0.0)), self.car.GetWorldPoint(localPoint=(0.0, 0.0)), True)
             elif key == 's':
-                self.car.ApplyForce(self.car.GetWorldVector(localVector=(1000.0, 0.0)), self.car.GetWorldPoint(localPoint=(0.0, 0.0)), True)
+                #braking power is a function of speed, reverse is just fixed force
+                if fw_speed > 0 :
+                    bp = max(min(400.0,abs(fw_speed)*5.0),100.0)
+                else: bp = 60.0
+                
+                self.car.ApplyForce(self.car.GetWorldVector(localVector=(-bp, 0.0)), self.car.GetWorldPoint(localPoint=(0.0, 0.0)), True)
             elif key == 'a':
-                if self.time_pressed['a'] < 1: self.time_pressed['a'] += .013 
-                self.car.ApplyTorque(-self.time_pressed['a']*speed*100, True)
+                if self.time_pressed['a'] < 1: self.time_pressed['a'] += 1 #in effect disabling "time pressed" feature 
+                self.car.ApplyTorque(-min(fw_speed*self.time_pressed['a']*.7,25), True)
+                #hard limit on turning force (min 20 statement) to prevent oversteer at high speed
             elif key == 'd':
-                if self.time_pressed['d'] < 1: self.time_pressed['d'] += .013
-                self.car.ApplyTorque(self.time_pressed['d']*speed*100, True)
+                if self.time_pressed['d'] < 1: self.time_pressed['d'] += 1
+                self.car.ApplyTorque(min(fw_speed*self.time_pressed['d']*.7,25), True)
     
         #side force when drifting
-        sideforce = np.sign(self.car.GetWorldVector((1,0)).cross(self.car.linearVelocity))*min(6,abs(self.car.GetWorldVector((1,0)).cross(self.car.linearVelocity)))
-        self.car.ApplyForce(-60*self.car.GetWorldVector(localVector=(0,sideforce)), self.car.GetWorldPoint(localPoint=(0.0,0.0)),True)
+        MAX_SIDEFORCE = 15
+        sideforce = self.car.GetWorldVector((1,0)).cross(self.car.linearVelocity)
+        if sideforce > MAX_SIDEFORCE: sideforce = MAX_SIDEFORCE
+        elif sideforce < -MAX_SIDEFORCE: sideforce = -MAX_SIDEFORCE
+        self.car.ApplyForce(-12*self.car.GetWorldVector(localVector=(abs(sideforce/5),sideforce)), self.car.GetWorldPoint(localPoint=(0.0,0.0)),True)
+        #force in x ensures drifting doesnt penalize your speed too bad ^           ^
+
         
+                    
         #check checkpoint for collisions
-        callback = myCallback()
-        self.world.RayCast(callback, self.cpts[self.cp][0], self.cpts[self.cp][1])
-        if callback.hit:
-            self.cp += 1
-            reward += 5
-            if self.cp >= len(self.cpts): 
-                self.cp=0
-                self.lap += 1
-                reward += 10
-                if self.lap > 3:
-                    flags.append('done')
+        was_hit = True
+        while was_hit:                  #to prevent gate skipping at high speed
+            callback = myCallback()
+            self.world.RayCast(callback, (self.cpts[self.cp][0]), (self.cpts[self.cp][1]))
+            if callback.hit:
+                reward = 10
+                self.cp += 1
+                if self.cp >= len(self.cpts): 
+                    self.cp=0
+            else: was_hit = False
         
         # check whiskers
         point1 = self.car.position
         for ray in self.rays:  
-            angle = self.car.angle + np.pi + ray[0]
+            angle = self.car.angle + ray[0]
             d = (ray[1] * np.cos(angle), ray[1] * np.sin(angle))
             point2 = point1 + d
     
@@ -201,6 +219,7 @@ class Drifter:
                 ray[2] = np.linalg.norm(point1 - callback.point)
             else:
                 ray[2] = np.linalg.norm(point1 - point2)
+                
                 
         #change car color to red if it crashed
         if self.car.contacts == []: self.car_color = 'blue' 
@@ -225,21 +244,21 @@ class Drifter:
                 shape = fixture.shape
                 #vertices = [(track[0].transform * v) for v in shape.vertices]
                 #vertices = [(v[0], self.SCREEN_HEIGHT - v[1]) for v in vertices]
-                pygame.draw.polygon(self.screen, THECOLORS[track[1]], shape.vertices)
+                pygame.draw.polygon(self.screen, THECOLORS[track[1]], self.tfm(shape.vertices))
                 
         shape = self.car.fixtures[0].shape
-        vertices = [(self.car.transform * v) for v in shape.vertices]
+        vertices = [(self.car.transform * v)*self.PPM for v in shape.vertices]
         pygame.draw.polygon(self.screen, THECOLORS[self.car_color], vertices)
             
         #draw checkpoint
-        pygame.draw.line(self.screen, THECOLORS['green'],self.cpts[self.cp][0], self.cpts[self.cp][1], 1)
+        pygame.draw.line(self.screen, THECOLORS['green'],self.tfm(self.cpts[self.cp][0]), self.tfm(self.cpts[self.cp][1]), 1)
         
         
-        point1 = self.car.position
         
         #draw whiskers
+        point1 = self.car.position
         for ray in self.rays:  
-            angle = self.car.angle + np.pi + ray[0]
+            angle = self.car.angle  + ray[0]
             d = (ray[1] * np.cos(angle), ray[1] * np.sin(angle))
             point2 = point1 + d
     
@@ -247,10 +266,11 @@ class Drifter:
             self.world.RayCast(callback, point1, point2)
         
             if callback.hit:
-                pygame.draw.circle(self.screen, THECOLORS['red'], (int(callback.point[0]),int(callback.point[1])),3)
-                pygame.draw.line(self.screen, THECOLORS['red'],(point1), (callback.point), 1)
+                pygame.draw.circle(self.screen, THECOLORS['red'], (int(callback.point[0]*self.PPM),int(callback.point[1]*self.PPM)),3)
+                pygame.draw.line(self.screen, THECOLORS['red'],(point1*self.PPM), (callback.point*self.PPM), 1)
             else:
-                pygame.draw.line(self.screen, THECOLORS['orange'],(point1), (point2), 1)
+                pygame.draw.line(self.screen, THECOLORS['orange'],(point1*self.PPM), (point2*self.PPM), 1)
+             
                 
         '''
         #draw text info
@@ -272,13 +292,15 @@ class Drifter:
         
     
     def reset(self):
-        self.car.position= self.spawn
-        self.car.angle= self.direction
+        #spawn point index
+        spi = random.randint(0,len(self.centerline)-2)
+        self.car.position= self.rtfm(self.centerline[spi])
+        self.car.angle = np.arctan2(self.centerline[spi+1][1] - self.centerline[spi][1], self.centerline[spi+1][0] - self.centerline[spi][0])
         self.car.angularVelocity = 0.0
         self.car.linearVelocity = (0,0)
         
         self.frame_counter = 0
-        self.cp = 0
+        self.cp = spi*5 #5 comes from track gen checkpoints per point set
         self.lap = 1
         
         self.step() #to reset whisker distances, speed, etc
@@ -304,24 +326,40 @@ class Drifter:
         self.tracks = []
         
         #track setup
-        self.outer_track = self.world.CreateBody(shapes=chainShape(vertices=left))
-        self.tracks.append([self.outer_track,'white'])
-        self.inner_track = self.world.CreateBody(shapes=chainShape(vertices=right))
-        self.tracks.append([self.inner_track,'lightblue'])
+        outer_track = self.world.CreateBody(shapes=chainShape(vertices=self.rtfm(left)))
+        inner_track = self.world.CreateBody(shapes=chainShape(vertices=self.rtfm(right)))
         self.centerline = centerline
-        self.spawn = (int(centerline[0][0]/self.PPM), int(centerline[0][1]/self.PPM))
-        self.cpts = checkpoints
+        self.spawn = (round(centerline[0][0]/self.PPM), round(centerline[0][1]/self.PPM))
+        self.cpts = list(self.rtfm(x) for x in checkpoints) #unlike left and right tracks, center is stored as meters instead of pix.
+        #this is because it is accessed as meters by physics engine every loop.
         
-        hyp = np.linalg.norm(np.array(self.centerline[1]) - np.array(self.centerline[0]))
-        adj = (self.centerline[1][1] - self.centerline[0][1])
+        #this next bit decides whether to flip left and right to make sure we can handle clockwise AND
+        #counterclockwise tracks in the next bit. Theres probably a faster way to do it but this block
+        #only runs once so who cares. The idea is to shoot a ray across the screen until it hits a track,
+        #and whichever track it contacts first is the outer track (left track)
+        outer_track.fixtures[0].userData = 'outer'
+        callback = RayCastClosestCallback()
+        i=0
+        while callback.hit == False:  
+            self.world.RayCast(callback, (i-10,-10), (i-10,self.SCREEN_HEIGHT/self.PPM))
+            i+=3
+        if callback.fixture.userData != 'outer':
+            print('clockwise track detected. Initiating corrections')
+            temp = outer_track
+            outer_track = inner_track
+            inner_track = temp
+            
+        self.tracks.append([outer_track,'white'])
+        self.tracks.append([inner_track,'lightblue'])
         
-        self.direction = -(np.arccos(adj/hyp)) - np.pi/2
+        self.direction = np.arctan2(centerline[1][1] - centerline[0][1], centerline[1][0] - centerline[0][0])
         
         # Create car
-        self.car = self.world.CreateDynamicBody(position=self.spawn, angle= self.direction)#, linearDamping=.2, angularDamping = 6)
+        self.car = self.world.CreateDynamicBody(position=self.spawn, angle= self.direction, linearDamping=.3, angularDamping = 6)
         self.car_color = 'blue'
-        self.box = self.car.CreatePolygonFixture(box=(10, 5), density=.04)#, friction=0.2)
-        self.box.massData.center = vec2(0,-10) #set center of mass
+        self.box = self.car.CreatePolygonFixture(box=(1, .5), density=1, friction=0.002)
+        #self.box.massData.center = vec2(0,-10) #set center of mass
+
         
     
     def mstep(self, action = [False, False, False, False]):
@@ -329,7 +367,6 @@ class Drifter:
         
         flags = []
         
-        #key press handler
         for event in pygame.event.get():
             if event.type == QUIT:
                 pygame.quit()
@@ -352,6 +389,8 @@ class Drifter:
                            self.screen.blit(self.font.render("GRAPHICS OFF", 1, THECOLORS["red"]), (self.SCREEN_WIDTH/2-75,self.SCREEN_HEIGHT/2 + 20))
                            pygame.display.flip()
                        self.graphics = not self.graphics
+                    if event.key == K_r:
+                        self.reset()
 
                             
                     if event.key == K_w and 'w' not in self.pressed_keys:
@@ -398,34 +437,47 @@ class Drifter:
                        
                     
         #handle movement
-        speed = self.car.GetWorldVector((1,0)).dot(self.car.linearVelocity)
+        #the next 30 lines took days of tuning to get right. dont fuck with it.
+        fw_speed = (self.car.GetWorldVector((1,0)).dot(self.car.linearVelocity))
         
         for key in self.pressed_keys:
             if key == 'w':
-                self.car.ApplyForce(self.car.GetWorldVector(localVector=(-1000.0, 0.0)), self.car.GetWorldPoint(localPoint=(0.0, 0.0)), True)
+                self.car.ApplyForce(self.car.GetWorldVector(localVector=(120.0, 0.0)), self.car.GetWorldPoint(localPoint=(0.0, 0.0)), True)
             elif key == 's':
-                self.car.ApplyForce(self.car.GetWorldVector(localVector=(500.0, 0.0)), self.car.GetWorldPoint(localPoint=(0.0, 0.0)), True)
+                #braking power is a function of speed, reverse is just fixed force
+                if fw_speed > 0 :
+                    bp = max(min(400.0,abs(fw_speed)*5.0),100.0)
+                else: bp = 60.0
+                
+                self.car.ApplyForce(self.car.GetWorldVector(localVector=(-bp, 0.0)), self.car.GetWorldPoint(localPoint=(0.0, 0.0)), True)
             elif key == 'a':
-                if self.time_pressed['a'] < 1: self.time_pressed['a'] += .013 
-                self.car.ApplyTorque(self.time_pressed['a']*speed*30, True)
+                if self.time_pressed['a'] < 1: self.time_pressed['a'] += 1 #in effect disabling "time pressed" feature 
+                self.car.ApplyTorque(-min(fw_speed*self.time_pressed['a']*.7,25), True)
+                #hard limit on turning force (min 20 statement) to prevent oversteer at high speed
             elif key == 'd':
-                if self.time_pressed['d'] < 1: self.time_pressed['d'] += .013
-                self.car.ApplyTorque(-self.time_pressed['d']*speed*30, True)
+                if self.time_pressed['d'] < 1: self.time_pressed['d'] += 1
+                self.car.ApplyTorque(min(fw_speed*self.time_pressed['d']*.7,25), True)
     
         #side force when drifting
-        
-        '''
-        sideforce = np.sign(self.car.GetWorldVector((1,0)).cross(self.car.linearVelocity))*min(6,abs(self.car.GetWorldVector((1,0)).cross(self.car.linearVelocity)))
-        self.car.ApplyForce(-60*self.car.GetWorldVector(localVector=(0,sideforce)), self.car.GetWorldPoint(localPoint=(0.0,0.0)),True)
-        '''
+        MAX_SIDEFORCE = 15
+        sideforce = self.car.GetWorldVector((1,0)).cross(self.car.linearVelocity)
+        if sideforce > MAX_SIDEFORCE: sideforce = MAX_SIDEFORCE
+        elif sideforce < -MAX_SIDEFORCE: sideforce = -MAX_SIDEFORCE
+        self.car.ApplyForce(-12*self.car.GetWorldVector(localVector=(abs(sideforce/5),sideforce)), self.car.GetWorldPoint(localPoint=(0.0,0.0)),True)
+        #force in x ensures drifting doesnt penalize your speed too bad ^           ^
+
         
         #check checkpoint for collisions
-        callback = myCallback()
-        self.world.RayCast(callback, self.cpts[self.cp][0], self.cpts[self.cp][1])
-        if callback.hit:
-            self.cp += 1
-            if self.cp >= len(self.cpts): 
-                self.cp=0
+        was_hit = True
+        while was_hit:                  #to prevent gate skipping at high speed
+            callback = myCallback()
+            self.world.RayCast(callback, (self.cpts[self.cp][0]), (self.cpts[self.cp][1]))
+            if callback.hit:
+                self.cp += 1
+                if self.cp >= len(self.cpts): 
+                    self.cp=0
+            else: was_hit = False
+        
                 
         #change car color to red if it crashed
         if self.car.contacts == []: self.car_color = 'blue' 
@@ -439,6 +491,33 @@ class Drifter:
     
         self.world.Step(self.TIME_STEP, 10, 10)
         
+        
+        
+        
+    def tfm(self, meters):
+        '''transforms from meters to pixels for single values and points'''
+        if type(meters) == int:
+            return meters*self.PPM
+        elif type(meters) == list:
+            rv = []
+            for item in meters:
+                if type(item) in [list,tuple]: #handle lists of lists of points
+                    rv.append([item[0]*self.PPM,item[1]*self.PPM])
+                else:
+                    rv.append(item*self.PPM)
+            return rv
+        else:
+            return None
+        
+    def rtfm(self, pix):
+        '''reverse transforms a list of points from pixels to meters'''
+        rv = []
+        if type(pix[0]) in[int]:
+            return [pix[0]/self.PPM, pix[1]/self.PPM]
+        
+        for point in pix:
+            rv.append([(point[0]/self.PPM),(point[1]/self.PPM)])
+        return rv
         
         
 class myCallback(rayCastCallback):
@@ -459,8 +538,8 @@ class myCallback(rayCastCallback):
             return 1.0
         self.hit = True
         self.fixtures.append(fixture)
-        self.points.append(b2Vec2(point))
-        self.normals.append(b2Vec2(normal))
+        self.points.append(vec2(point))
+        self.normals.append(vec2(normal))
         return 1.0
         
         
