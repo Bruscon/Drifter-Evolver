@@ -15,6 +15,8 @@ import pymunk.pygame_util
 import numpy as np
 import random
 
+import ntools
+
 from Box2D.examples.raycast import RayCastClosestCallback, b2RayCastCallback
 import sys
 

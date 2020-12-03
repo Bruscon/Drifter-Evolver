@@ -4,62 +4,62 @@ Created on Thu Nov  5 10:34:02 2020
 
 @author: Nick Brusco
 """
-
-#from __future__ import print_function
 import os
+import sys
 import multiprocessing
 import neat
-from NEAT_drifter_class import *
+from NEAT_drifter_class import Drifter
 import Dgui
 import TrackGen
 
-def eval_genomes(genomes, config):
-    
-    
-    for genome_id, genome in genomes:
-        genome.fitness = 0
-        nn = neat.nn.RecurrentNetwork.create(genome, config)
-        
-        dft.reset()
-        
-        done = False
-        fitness = 0
-        for timestep in range(1, dft.max_steps_per_episode):
-            
-            #data to display on screen needs to be passed to pygame
-            if dft.graphics:
-                dft.stats = { 'pop': int(str(p.species.indexer)[6:-1])-1, #number of species
-                             'gen': p.generation
-                         }
-        
-                #gui.step(config)
+import ntools
 
-            #run inputs through neural net
-            outputs = nn.activate(dft.get_state())
-            
-            #convert probabilities to binary key press outputs
-            keys = []
-            for key in outputs:
-                keys.append(key > 0)
-            
-            #apply outputs to game 
-            state, reward, flags = dft.step(keys)
-            
-            for flag in flags:
-                if flag == 'quit':
-                    running = False
-                if flag == 'crashed':
-                    reward /= 2
-                    done = True
-                    break
-                
-                
-            fitness += reward
 
-            if done:
+def eval_genome(genome, config):
+    
+    genome.fitness = 0
+    nn = neat.nn.RecurrentNetwork.create(genome, config)
+    
+    dft.reset()
+    
+    done = False
+    fitness = 0
+    for timestep in range(1, dft.max_steps_per_episode):
+        
+        #data to display on screen needs to be passed to pygame
+        if dft.graphics:
+            dft.stats = { 'pop': int(str(p.species.indexer)[6:-1])-1, #number of species
+                         'gen': p.generation
+                     }
+    
+            #gui.step(config)
+
+        #run inputs through neural net
+        outputs = nn.activate(dft.get_state())
+        
+        #convert probabilities to binary key press outputs
+        keys = []
+        for key in outputs:
+            keys.append(key > 0)
+        
+        #apply outputs to game 
+        state, reward, flags = dft.step(keys)
+        
+        for flag in flags:
+            if flag == 'quit':
+                running = False
+            if flag == 'crashed':
+                reward /= 2
+                done = True
                 break
-        
-        genome.fitness = fitness
+            
+            
+        fitness += reward
+
+        if done:
+            break
+    
+    return fitness
 
 
 def run(config_path):
@@ -115,17 +115,19 @@ def run(config_path):
             dft.mstep()
         
         
-    pe = neat.ParallelEvaluator(multiprocessing.cpu_count(), eval_genomes)    
+    pe = neat.ParallelEvaluator(multiprocessing.cpu_count(), eval_genome)    
     
     while(1):
         # Run a generation
         dft.graphics = False
         
-        winner = p.run(pe.evaluate, 100)
+        winner = p.run(pe.evaluate, 1)
         #winner = p.run(eval_genomes, 1)
         
         winner_net = neat.nn.RecurrentNetwork.create(winner, config)
         
+        
+        #the rest of this loop is to replay the winner
         dft.graphics = True
         dft.reset()
         done = False
@@ -154,9 +156,13 @@ def run(config_path):
 
 
 if __name__ == '__main__':
+
+    
+
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
     # current working directory.
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'NEAT_config.py')
+    print(os.path)
     run(config_path)
