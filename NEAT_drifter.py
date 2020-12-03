@@ -113,16 +113,13 @@ def run(config_path):
     if 'm' in args:
         while(1):
             dft.mstep()
-        
-        
-    pe = neat.ParallelEvaluator(multiprocessing.cpu_count(), eval_genomes)    
+            
     
     while(1):
         # Run a generation
         dft.graphics = False
         
-        winner = p.run(pe.evaluate, 100)
-        #winner = p.run(eval_genomes, 1)
+        winner = p.run(eval_genomes, 1)
         
         winner_net = neat.nn.RecurrentNetwork.create(winner, config)
         
