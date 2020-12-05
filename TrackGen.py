@@ -16,6 +16,8 @@ import pymunk.pygame_util
 import numpy as np
 import sys
 import math
+import pickle
+from tkinter import filedialog
 
 
 
@@ -37,12 +39,12 @@ class TrackGen:
         self.angle_limit_h = (0,0)
         self.angle_limit_l = (0,0)
         
-        self.intro_message = "Welcome to the track generator!\n" \
-                            "Keep all parts of your track on-screen.\n"\
-                            "Do not let your centerline or walls cross eachother.\n" \
-                            "The track must form a complete loop.\n" \
-                            "Press 'd' or backspace to remove points.\n" \
-                            "Click anywhere to begin..."
+        self.intro_message = "Welcome to the Track Generator!\n" \
+                             "Press L to load a track, or click anywhere to draw your own.\n" \
+                             "Press 'd' or backspace to remove points.\n" \
+                             "The track must form a complete loop.\n" \
+                             "Do not let your centerline or walls cross eachother.\n" \
+                             "Click anywhere to begin..."
         
     def step(self):
         
@@ -75,17 +77,33 @@ class TrackGen:
                         self.mode = 'intro'
                 
                 if event.key == K_RETURN and self.mode == 'done':
-                    #good luck unravelling what this does, just be glad it works.
-                    self.points = [list(round(b) for b in i) for i in self.points]
-                    self.lbound = [list(round(b) for b in i) for i in self.lbound]
-                    self.rbound = [list(round(b) for b in i) for i in self.rbound]
-                    
-                    cpts = []
-                    for pair in self.checkpoints:
-                        cpts.append(list(((round(pair[0][0]), round(pair[0][1])), (round(pair[1][0]), round(pair[1][1])))))                    
-                    
-                    return (self.points, self.lbound, self.rbound, cpts)
-                    
+                     #finish up
+                     self.reformat_lists
+                     self.endscreen()
+                     return (self.points, self.lbound, self.rbound, self.checkpoints)
+
+                if event.key == K_l:
+                     #load existing track
+                     filename = filedialog.askopenfilename(initialdir = "tracks", defaultextension = '.track', title = "Select a Track")
+                     if filename in ['',None] : break #handle a failed load
+                     with open(filename,'rb') as dbfile :
+                         db = pickle.load(dbfile)
+                     print('Track loaded')
+                     self.endscreen()
+                     return (db['points'],db['lbound'],db['rbound'],db['checkpoints'])
+                 
+                if event.key == K_s and self.mode == 'done':
+                     #save the track
+                     filename = filedialog.asksaveasfile(initialdir = "tracks", defaultextension = '.track', mode = 'wb', title = 'Save your track')
+                     if filename in ['',None] : break #handle a failed 
+                     self.reformat_lists()
+                     db = {}
+                     db['points'],db['lbound'],db['rbound'],db['checkpoints'] = self.points,self.lbound,self.rbound,self.checkpoints
+                     pickle.dump(db, filename)
+                     filename.close()
+                     print('Track Saved')
+                     self.endscreen()
+                     return (db['points'],db['lbound'],db['rbound'],db['checkpoints'])
                 
         self.render()
         
@@ -144,7 +162,7 @@ class TrackGen:
         if self.mode == 'done':
             for pair in self.checkpoints:
                 pygame.draw.line(self.dft.screen, THECOLORS['green'], pair[0], pair[1], 2)
-            self.dft.screen.blit(self.dft.font.render("If you're happy with your track, press enter. Otherwise press delete", 1, THECOLORS["black"]), (100,400))
+            self.dft.screen.blit(self.dft.font.render("If you're happy with your track, press enter. Otherwise press delete. Press S to save track", 1, THECOLORS["black"]), (100,400))
             
         
         pygame.display.flip()
@@ -296,6 +314,24 @@ class TrackGen:
         
         for j in h:
                 self.checkpoints.append(j)
+                
+                
+    def reformat_lists(self):
+        self.points = [list(round(b) for b in i) for i in self.points]
+        self.lbound = [list(round(b) for b in i) for i in self.lbound]
+        self.rbound = [list(round(b) for b in i) for i in self.rbound]
+
+        cpts = []
+        for pair in self.checkpoints:
+            cpts.append(list(((round(pair[0][0]), round(pair[0][1])), (round(pair[1][0]), round(pair[1][1])))))  
+        self.checkpoints = cpts
+        
+        
+    def endscreen(self):
+        self.dft.screen.fill(THECOLORS['gray'])
+        self.blit_text(self.dft.screen, 'Track Loaded! Running first generation...', (300,200), self.dft.font)
+        pygame.display.flip()
+
 
         
         

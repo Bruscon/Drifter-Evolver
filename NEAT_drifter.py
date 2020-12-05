@@ -5,9 +5,7 @@ Created on Thu Nov  5 10:34:02 2020
 @author: Nick Brusco
 """
 
-#from __future__ import print_function
 import os
-import multiprocessing
 import neat
 from NEAT_drifter_class import *
 import Dgui
@@ -94,10 +92,7 @@ def run(config_path):
         rv = None
         while(rv == None):
             rv = tg.step()
-    
-        centerline, left, right, checkpoints = rv
-        dft.init_track(left, right, centerline, checkpoints)
-        print(centerline)
+        dft.init_track(*rv)
     
     #if we're not just manuatlly driving the car:
     if 'm' not in args:
@@ -108,7 +103,7 @@ def run(config_path):
         p.add_reporter(neat.StdOutReporter(True))
         stats = neat.StatisticsReporter()
         p.add_reporter(stats)
-        p.add_reporter(neat.Checkpointer(25)) #Saves current state every 25 generations
+        p.add_reporter(neat.Checkpointer(20,99999999)) #Saves current state every 25 generations
     
     if 'm' in args:
         while(1):

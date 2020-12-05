@@ -318,7 +318,7 @@ class Drifter:
                  ]
         return state
     
-    def init_track(self, left, right, centerline, checkpoints):
+    def init_track(self, centerline, left, right, checkpoints):
         
         # --- pybox2d world setup ---
         self.world = world(gravity=(0, 0), doSleep=True)
