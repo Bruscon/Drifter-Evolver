@@ -12,8 +12,7 @@ import Dgui
 import TrackGen
 
 def eval_genomes(genomes, config):
-    
-    
+
     for genome_id, genome in genomes:
         genome.fitness = 0
         nn = neat.nn.RecurrentNetwork.create(genome, config)
@@ -50,7 +49,6 @@ def eval_genomes(genomes, config):
                     reward /= 2
                     done = True
                     break
-                
                 
             fitness += reward
 
@@ -103,7 +101,9 @@ def run(config_path):
         p.add_reporter(neat.StdOutReporter(True))
         stats = neat.StatisticsReporter()
         p.add_reporter(stats)
-        p.add_reporter(neat.Checkpointer(20,99999999)) #Saves current state every 25 generations
+        p.add_reporter(neat.Checkpointer(100,99999999)) #Saves current state every 100 generations
+        '''The checkpoint files keep growing in size, after a few thousand generations 
+        theyre 50+ Mb. No idea why, definitely fix this '''
     
     if 'm' in args:
         while(1):
@@ -122,7 +122,6 @@ def run(config_path):
         dft.reset()
         done = False
         for timestep in range(1, dft.max_steps_per_episode):
-                
                 #run inputs through neural net
                 outputs = winner_net.activate(dft.get_state())
                 
@@ -135,12 +134,9 @@ def run(config_path):
                 state, reward, flags = dft.step(keys)
                 
                 for flag in flags:
-                    if flag == 'quit':
-                        running = False
                     if flag == 'crashed':
                         done = True
                         break
-    
                 if done:
                     break
 

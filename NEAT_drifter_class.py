@@ -271,15 +271,6 @@ class Drifter:
             else:
                 pygame.draw.line(self.screen, THECOLORS['orange'],(point1*self.PPM), (point2*self.PPM), 1)
              
-                
-        '''
-        #draw text info
-        self.screen.blit(self.font.render("Generation: " + str(self.stats['pop']), 1, THECOLORS["black"]), (0,36))
-        self.screen.blit(self.font.render("Individual: " + str() + " / " + str(self.stats['pop']), 1, THECOLORS["black"]), (0,54))
-        
-        self.screen.blit(self.font.render("Time: " + str(int((ticks%RUNTIME/30))) + " / "+ str(round(RUNTIME/30)), 1, THECOLORS["black"]), (0,72))
-        self.screen.blit(self.font.render("Playback: " + str(self.playback_speed) + "x", 1, THECOLORS["black"]), (10,10))
-        '''
         if self.command_mode:
             self.screen.blit(self.font.render("Cmd: " + self.command, 1, THECOLORS["green"]), (10,30))
     
@@ -511,10 +502,10 @@ class Drifter:
         
     def rtfm(self, pix):
         '''reverse transforms a list of points from pixels to meters'''
-        rv = []
         if type(pix[0]) in[int]:
             return [pix[0]/self.PPM, pix[1]/self.PPM]
         
+        rv = []
         for point in pix:
             rv.append([(point[0]/self.PPM),(point[1]/self.PPM)])
         return rv

@@ -20,7 +20,7 @@ import pickle
 from tkinter import filedialog
 
 
-
+  
 class TrackGen:
     
     def __init__(self, dft):
@@ -78,7 +78,7 @@ class TrackGen:
                 
                 if event.key == K_RETURN and self.mode == 'done':
                      #finish up
-                     self.reformat_lists
+                     self.reformat_lists()
                      self.endscreen()
                      return (self.points, self.lbound, self.rbound, self.checkpoints)
 
