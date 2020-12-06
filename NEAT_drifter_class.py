@@ -27,8 +27,6 @@ class Drifter:
     
     def __init__(self):
         
-        self.largest = 0
-        
         # --- constants ---
         self.PPM = 10.0  # pixels per meter
         self.TARGET_FPS = 60
@@ -320,7 +318,7 @@ class Drifter:
                  ]
         return state
     
-    def init_track(self, left, right, centerline, checkpoints):
+    def init_track(self, centerline, left, right, checkpoints):
         
         # --- pybox2d world setup ---
         self.world = world(gravity=(0, 0), doSleep=True)

@@ -9,33 +9,27 @@ import sys
 import multiprocessing
 import neat
 from NEAT_drifter_class import Drifter
+from mpdrifter import MPDrifter
 import Dgui
 import TrackGen
 
 import ntools
 
 
-def eval_genome(genome, config):
+def eval_genome(genome, config, track):
     
     genome.fitness = 0
     nn = neat.nn.RecurrentNetwork.create(genome, config)
     
-    dft.reset()
+    mpdft = MPDrifter()
+    mpdft.init_track(*track)
     
     done = False
     fitness = 0
-    for timestep in range(1, dft.max_steps_per_episode):
-        
-        #data to display on screen needs to be passed to pygame
-        if dft.graphics:
-            dft.stats = { 'pop': int(str(p.species.indexer)[6:-1])-1, #number of species
-                         'gen': p.generation
-                     }
-    
-            #gui.step(config)
+    for timestep in range(1, mpdft.max_steps_per_episode):
 
         #run inputs through neural net
-        outputs = nn.activate(dft.get_state())
+        outputs = nn.activate(mpdft.get_state())
         
         #convert probabilities to binary key press outputs
         keys = []
@@ -43,11 +37,9 @@ def eval_genome(genome, config):
             keys.append(key > 0)
         
         #apply outputs to game 
-        state, reward, flags = dft.step(keys)
+        state, reward, flags = mpdft.step(keys)
         
         for flag in flags:
-            if flag == 'quit':
-                running = False
             if flag == 'crashed':
                 reward /= 2
                 done = True
@@ -65,9 +57,6 @@ def eval_genome(genome, config):
 def run(config_path):
     #get command line arguments
     args = sys.argv
-    
-    global dft
-    global p
     
     dft = Drifter()
 
@@ -94,12 +83,9 @@ def run(config_path):
         rv = None
         while(rv == None):
             rv = tg.step()
+        dft.init_track(*rv)
     
-        centerline, left, right, checkpoints = rv
-        dft.init_track(left, right, centerline, checkpoints)
-        print(centerline)
-    
-    #if we're not just manuatlly driving the car:
+    #if we're not just manually driving the car:
     if 'm' not in args:
         # Create the population, which is the top-level object for a NEAT run.
         p = neat.Population(config)
@@ -108,14 +94,14 @@ def run(config_path):
         p.add_reporter(neat.StdOutReporter(True))
         stats = neat.StatisticsReporter()
         p.add_reporter(stats)
-        p.add_reporter(neat.Checkpointer(25)) #Saves current state every 25 generations
+        p.add_reporter(neat.Checkpointer(100,99999999)) #Saves current state every 25 generations
     
     if 'm' in args:
         while(1):
             dft.mstep()
         
         
-    pe = neat.ParallelEvaluator(multiprocessing.cpu_count(), eval_genome)    
+    pe = neat.ParallelEvaluator(multiprocessing.cpu_count(), eval_genome, track = rv)    
     
     while(1):
         # Run a generation
