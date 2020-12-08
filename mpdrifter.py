@@ -28,20 +28,7 @@ class MPDrifter:
         # --- constants ---
         self.PPM = 10.0  # pixels per meter
         self.SCREEN_WIDTH, self.SCREEN_HEIGHT = 1300, 700
-        '''
-        # --- pygame setup ---
-        pygame.init()
-        self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT), 0, 32)
-        pygame.display.set_caption('Drifter Evolver')
-        self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont("Arial", 16)
-        self.graphics = True
-        '''
-        #game variables
-        #self.command_mode = False
-        #self.command = 0
-        #self.playback_speed = 1
-        #self.frame_counter = 0 #for manipulating playback speed. only render one in every playback_speed frames
+
         self.max_steps_per_episode = 250
         self.stats = { 'pop': 200}
         

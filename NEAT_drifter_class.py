@@ -222,11 +222,11 @@ class Drifter:
                 
                 
         #change car color to red if it crashed
-        if self.car.contacts == []: self.car_color = 'blue' 
-        else: 
-            self.car_color = 'red'
-            #reward = 0
-            flags.append('crashed')
+        self.car_color = 'blue'
+        for contact in self.car.contacts:
+            if self.car.contacts[0].contact.touching: #AABB collision bug fix, keep it
+                self.car_color = 'red'
+                flags.append('crashed')
                 
         if self.graphics:
             self.render()
@@ -242,8 +242,6 @@ class Drifter:
         for track in self.tracks:  
             for fixture in track[0].fixtures:
                 shape = fixture.shape
-                #vertices = [(track[0].transform * v) for v in shape.vertices]
-                #vertices = [(v[0], self.SCREEN_HEIGHT - v[1]) for v in vertices]
                 pygame.draw.polygon(self.screen, THECOLORS[track[1]], self.tfm(shape.vertices))
                 
         shape = self.car.fixtures[0].shape
@@ -271,15 +269,6 @@ class Drifter:
             else:
                 pygame.draw.line(self.screen, THECOLORS['orange'],(point1*self.PPM), (point2*self.PPM), 1)
              
-                
-        '''
-        #draw text info
-        self.screen.blit(self.font.render("Generation: " + str(self.stats['pop']), 1, THECOLORS["black"]), (0,36))
-        self.screen.blit(self.font.render("Individual: " + str() + " / " + str(self.stats['pop']), 1, THECOLORS["black"]), (0,54))
-        
-        self.screen.blit(self.font.render("Time: " + str(int((ticks%RUNTIME/30))) + " / "+ str(round(RUNTIME/30)), 1, THECOLORS["black"]), (0,72))
-        self.screen.blit(self.font.render("Playback: " + str(self.playback_speed) + "x", 1, THECOLORS["black"]), (10,10))
-        '''
         if self.command_mode:
             self.screen.blit(self.font.render("Cmd: " + self.command, 1, THECOLORS["green"]), (10,30))
     
@@ -288,7 +277,7 @@ class Drifter:
         if self.frame_counter >= self.playback_speed:
             pygame.display.flip()
             self.frame_counter = 0
-            self.clock.tick(self.TARGET_FPS)
+            self.clock.tick(self.TARGET_FPS*self.playback_speed) #Keep this change, it fixes fast playback low framrate bug
         
     
     def reset(self):
@@ -324,6 +313,9 @@ class Drifter:
         self.world = world(gravity=(0, 0), doSleep=True)
         self.bodies = []
         self.tracks = []
+        
+        left.reverse()   #did not fix the early collision bug
+        right.reverse()
         
         #track setup
         outer_track = self.world.CreateBody(shapes=chainShape(vertices=self.rtfm(left)))
@@ -480,11 +472,11 @@ class Drifter:
         
                 
         #change car color to red if it crashed
-        if self.car.contacts == []: self.car_color = 'blue' 
-        else: 
-            self.car_color = 'red'
-            #reward = 0
-            flags.append('crashed')
+        self.car_color = 'blue'
+        for contact in self.car.contacts:
+            if self.car.contacts[0].contact.touching: #AABB collision bug fix, keep it
+                self.car_color = 'red'
+                flags.append('crashed')
                 
         if self.graphics:
             self.render()
