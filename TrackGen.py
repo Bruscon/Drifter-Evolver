@@ -20,7 +20,6 @@ import pickle
 from tkinter import filedialog
 
 
-  
 class TrackGen:
     
     def __init__(self, dft):
@@ -29,9 +28,12 @@ class TrackGen:
         self.dft = dft
         
         self.mode = 'intro'
-        self.MAXANGLE = .3 #in radians
         self.MAXDISTANCE = 30
-        self.WIDTH = 75
+        self.width = 75
+        self.MIN_WIDTH = 25
+        self.MAX_WIDTH = 150
+        self.max_angle = 25  #in radians. Gets recomputed frequently
+        self.recompute_max_angle() 
         self.points = []
         self.lbound = []
         self.rbound = []
@@ -42,6 +44,7 @@ class TrackGen:
         self.intro_message = "Welcome to the Track Generator!\n" \
                              "Press L to load a track, or click anywhere to draw your own.\n" \
                              "Press 'd' or backspace to remove points.\n" \
+                             "Use > or < to make the track wider or narrower respectively.\n" \
                              "The track must form a complete loop.\n" \
                              "Do not let your centerline or walls cross eachother.\n" \
                              "Click anywhere to begin..."
@@ -61,7 +64,7 @@ class TrackGen:
                 if self.mode == 'building':
                     self.new_point(pclicked)
                 
-            if event.type == KEYDOWN:   
+            if event.type == KEYDOWN:  
                 if event.key in [K_BACKSPACE, K_d, K_DELETE]:
                     if len(self.points) > 2:
                         self.points.pop(-1) 
@@ -81,6 +84,21 @@ class TrackGen:
                      self.reformat_lists()
                      self.endscreen()
                      return (self.points, self.lbound, self.rbound, self.checkpoints)
+                 
+                if event.key == 46: #GREATER_THAN symbol >
+                    if self.width < self.MAX_WIDTH:
+                        self.width *= 1.1
+                        self.recompute_max_angle()
+                    else:
+                        print("Track width already at maximum!")
+                
+                if event.key == 44: #LESS_THAN symbol <
+                    if self.width > self.MIN_WIDTH:
+                        self.width /= 1.1
+                        self.recompute_max_angle()
+                    else:
+                        print("Track width already at minimum!")
+
 
                 if event.key == K_l:
                      #load existing track
@@ -190,8 +208,8 @@ class TrackGen:
             
             #make right and left boundaries
             self.ud = (self.points[-1]-self.points[-2])/(np.linalg.norm(self.points[-1]-self.points[-2]))
-            self.lbound.append([round(i*self.WIDTH) for i in self.rotate(self.ud,np.pi/2)] + self.points[-2])
-            self.rbound.append([round(i*self.WIDTH) for i in self.rotate(self.ud,-np.pi/2)] + self.points[-2])
+            self.lbound.append([round(i*self.width) for i in self.rotate(self.ud,np.pi/2)] + self.points[-2])
+            self.rbound.append([round(i*self.width) for i in self.rotate(self.ud,-np.pi/2)] + self.points[-2])
         
         else:
             self.points.append(self.get_vp())
@@ -200,8 +218,8 @@ class TrackGen:
             self.get_angle_limits()
             
             #make right and left boundaries
-            self.lbound.append([round(i*self.WIDTH) for i in self.rotate(self.ud,np.pi/2)] + self.points[-2])
-            self.rbound.append([round(i*self.WIDTH) for i in self.rotate(self.ud,-np.pi/2)] + self.points[-2])
+            self.lbound.append([round(i*self.width) for i in self.rotate(self.ud,np.pi/2)] + self.points[-2])
+            self.rbound.append([round(i*self.width) for i in self.rotate(self.ud,-np.pi/2)] + self.points[-2])
             
             
             #check if this last point can complete the track:
@@ -210,9 +228,9 @@ class TrackGen:
                 #Get angle between two unit vectors. Dont ask how it works.
                 turn = math.atan2(self.ud[0]*self.iud[1] - self.ud[1]*self.iud[0], self.ud[0]*self.iud[0] + self.ud[1]*self.iud[1])
                 
-                if turn > self.MAXANGLE:
+                if turn > self.max_angle:
                     print('ERROR: track cannot loop here, angle too sharp. Delete a few points and try again.')
-                elif turn < -self.MAXANGLE:
+                elif turn < -self.max_angle:
                     print('ERROR: track cannot loop here, angle too sharp. Delete a few points and try again.')
                 elif len(self.points) >=4:
                     print('Track complete!')
@@ -240,9 +258,9 @@ class TrackGen:
             #Get angle between two unit vectors. Dont ask how it works.
             turn = math.atan2(ud[0]*uv[1] - ud[1]*uv[0], ud[0]*uv[0] + ud[1]*uv[1])
 
-            if turn > self.MAXANGLE:
+            if turn > self.max_angle:
                 vp =  self.angle_limit_h
-            elif turn < -self.MAXANGLE:
+            elif turn < -self.max_angle:
                 vp =  self.angle_limit_l
                 
             return vp.astype(int)
@@ -251,8 +269,8 @@ class TrackGen:
         return math.atan2((p2-p1)[1], (p2-p1)[0])
     
     def get_angle_limits(self):
-        self.angle_limit_h = (round(self.MAXDISTANCE*math.cos(self.direction + self.MAXANGLE)), round(self.MAXDISTANCE*math.sin(self.direction + self.MAXANGLE))) + self.points[-1]
-        self.angle_limit_l = (round(self.MAXDISTANCE*math.cos(self.direction - self.MAXANGLE)), round(self.MAXDISTANCE*math.sin(self.direction - self.MAXANGLE))) + self.points[-1]
+        self.angle_limit_h = (round(self.MAXDISTANCE*math.cos(self.direction + self.max_angle)), round(self.MAXDISTANCE*math.sin(self.direction + self.max_angle))) + self.points[-1]
+        self.angle_limit_l = (round(self.MAXDISTANCE*math.cos(self.direction - self.max_angle)), round(self.MAXDISTANCE*math.sin(self.direction - self.max_angle))) + self.points[-1]
         
     def rotate(self, vec, theta):
         '''rotates a vector vec ccw by theta radians'''
@@ -279,7 +297,7 @@ class TrackGen:
             
     def generate_checkpoints(self):
         '''takes the three lists of points (rbound, lbound, points) and generates
-        all the checkpoints for the drifter in a new list called self.checkpoints'''
+        all the checkpoints for the drifter in a new list called checkpoints'''
         
         GATESPERPOINT = 5 #number of gates drawn per point set in self.points
         self.checkpoints = []
@@ -329,15 +347,27 @@ class TrackGen:
         
     def endscreen(self):
         self.dft.screen.fill(THECOLORS['gray'])
-        self.blit_text(self.dft.screen, 'Track Loaded! Running first generation...', (300,200), self.dft.font)
+        self.blit_text(self.dft.screen, 'Track Ready! Running first generation...', (300,200), self.dft.font)
         pygame.display.flip()
-
+        
+    def recompute_max_angle(self):
+        #max angle = pi/2 - arccos(distance/width)
+        if self.width > self.MAXDISTANCE:
+            self.max_angle = (np.pi/2) - np.arccos(self.MAXDISTANCE/self.width)
+            self.max_angle *= .75 #just to add a little margin
+        else:
+            self.max_angle = np.pi/4
+        if self.max_angle > np.pi/4: self.max_angle = np.pi/4
 
         
         
 if __name__ == "__main__": 
     
-    tg = TrackGen()
+    from NEAT_drifter_class import Drifter
+    
+    dft = Drifter()
+    
+    tg = TrackGen(dft)
     
     PPM = 20.0  # pixels per meter
     TARGET_FPS = 60
