@@ -46,7 +46,7 @@ class Drifter:
         self.command = 0
         self.playback_speed = 1
         self.frame_counter = 0 #for manipulating playback speed. only render one in every playback_speed frames
-        self.max_steps_per_episode = 250
+        self.max_steps_per_episode = 1000
         self.stats = { 'pop': 200}
         self.pressed_keys = []
         

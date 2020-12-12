@@ -9,18 +9,24 @@ import Box2D  # The main library
 from Box2D.b2 import (world, polygonShape, staticBody, dynamicBody, vec2, chainShape, rayCastCallback)
 import numpy as np
 import random
+import neat
 
 import ntools
 
 from Box2D.examples.raycast import RayCastClosestCallback, b2RayCastCallback
-import sys
+import sys, os
 
 
 class MPDrifter:
     name = "Multiprocessing Drifter"
     description = "The multiprocessing-compatible version of Drifter"
     
-    def __init__(self):
+    def __init__(self,q,r,track, config):
+        #setup MP
+        self.q = q #queue for unsolved genomes
+        self.r = r #queue for solved fitness scores
+        self.track = track
+        self.config = config
         
         self.TARGET_FPS = 60
         self.TIME_STEP = 1.0 / self.TARGET_FPS
@@ -29,7 +35,7 @@ class MPDrifter:
         self.PPM = 10.0  # pixels per meter
         self.SCREEN_WIDTH, self.SCREEN_HEIGHT = 1300, 700
 
-        self.max_steps_per_episode = 250
+        self.max_steps_per_episode = 1000
         self.stats = { 'pop': 200}
         
         self.pressed_keys = []
@@ -49,16 +55,8 @@ class MPDrifter:
                 [np.pi/4,   100,     100],
                 [np.pi/2,   100,     100]])
         
-        #checkpoints, overwritten when using trackgen
-        self.cp = 0
-        self.cpts = [[(0,0),(1,1)]]
-
-        # Create world, car, track. This gets overwritten when not in manual mode so make sure you carry over any changes here to init_track
-        self.world = world(gravity=(0, 0), doSleep=True)
-        self.car = self.world.CreateDynamicBody(position=(200/self.PPM,200/self.PPM), angle= 0, linearDamping=.3, angularDamping = 6)
-        self.box = self.car.CreatePolygonFixture(box=(1, .5), density=1, friction=0.002)
+        #self.init_track(*self.track)
         
-        self.tracks = []
                 
     def step(self, action = [False, False, False, False]):
         
@@ -228,6 +226,58 @@ class MPDrifter:
         
         self.reset() #move car to a random location
         
+    def mp(self):
+        '''multiprocess! this function alone runs infinitely as a separate process until terminated.'''
+        
+        self.init_track(*self.track)  #need to do this here and not in __init__ for some reason
+        
+        while (1):
+            gpid = self.q.get() #take a genome plus ID from the queue, or wait if none are available
+            if gpid == None: #if the genome is None, kill yourself
+                sys.exit()
+                return 0
+            genome_id, genome = gpid
+            
+            self.reset()
+            
+            genome.fitness = 0
+            nn = neat.nn.RecurrentNetwork.create(genome, self.config)
+            flags = []
+            done = False
+            fitness = 0
+            for timestep in range(1, self.max_steps_per_episode):
+                '''very important note!!!! the reason your mp drifters were only smart up to a point before
+                was that when you increased runtime it DIDNT INCREASE FOR THE MPDRIFTERS!!!!! You need to
+                fix that A$AP ROCKY'''
+        
+                #run inputs through neural net
+                outputs = nn.activate(self.get_state())
+                
+                #convert probabilities to binary key press outputs
+                keys = []
+                for key in outputs:
+                    keys.append(key > 0)
+                
+                #apply outputs to game 
+                state, reward, flags = self.step(keys)
+                #print('pid: ', os.getpid(), ', reward: ',reward)
+                
+                for flag in flags:
+                    if flag == 'crashed':
+                        #print('pid: ', os.getpid(), ' crashed! ')
+                        done = True
+                        break
+                    
+                fitness += reward
+                #print('pid: ', os.getpid(), ', fitness: ',fitness)
+        
+                if done:
+                    break
+            
+            genome.fitness = fitness
+            #print('pid: ', os.getpid(), ', final fitness: ',genome.fitness)
+            self.r.put( (genome_id, genome) )     #put fitness in results queue to signal that we're done
+            
         
     def tfm(self, meters):
         '''transforms from meters to pixels for single values and points'''
@@ -254,6 +304,7 @@ class MPDrifter:
             rv.append([(point[0]/self.PPM),(point[1]/self.PPM)])
         return rv
         
+    
         
 class myCallback(rayCastCallback):
     """This raycast collects multiple hits on car only (fixture type 2)."""
