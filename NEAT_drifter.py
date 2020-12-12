@@ -90,13 +90,14 @@ def run(config_path):
         processes[-1].start()
         
     pe = neat.ParallelEvaluator(q, r)    
+    p.start_gen(pe.start_evaluate, 1) #start training
     
     while(1):
         # Run a generation
         dft.graphics = False
         
-        winner = p.run(pe.evaluate, 1)
-        #winner = p.run(eval_genomes, 1)
+        winner = p.run(pe.finish_evaluate, 1) #get results of last training session
+        p.start_gen(pe.start_evaluate, 1) #start next one so it can train while we display
         
         winner_net = neat.nn.RecurrentNetwork.create(winner, config)
         

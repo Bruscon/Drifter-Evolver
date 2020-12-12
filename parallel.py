@@ -20,11 +20,13 @@ class ParallelEvaluator(object):
     def __del__(self):
         pass
 
-    def evaluate(self, genomes, config):
+    def start_evaluate(self, genomes):
         
         for key, value in genomes.items():
             self.q.put((key,value))
             
+            
+    def finish_evaluate(self, genomes):
         for i in range(len(genomes)):
             key, genome = self.r.get()
             genomes[key].fitness = genome.fitness

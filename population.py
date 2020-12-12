@@ -55,7 +55,10 @@ class Population(object):
 
     def remove_reporter(self, reporter):
         self.reporters.remove(reporter)
-
+        
+    def start_gen(self, fitness_function, n = None):
+        fitness_function(self.population)
+        
     def run(self, fitness_function, n=None):
         """
         Runs NEAT's genetic algorithm for at most n generations.  If n
@@ -87,7 +90,7 @@ class Population(object):
 
             # Evaluate all genomes using the user-provided function.
             #fitness_function(list(iteritems(self.population)), self.config) <<< edited this because lists are stupid
-            fitness_function(((self.population)), self.config)
+            fitness_function(self.population)
 
             # Gather and report statistics.
             best = None
