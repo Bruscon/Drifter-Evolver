@@ -15,6 +15,8 @@ import pymunk.pygame_util
 import numpy as np
 import random
 
+import ntools
+
 from Box2D.examples.raycast import RayCastClosestCallback, b2RayCastCallback
 import sys
 
@@ -24,8 +26,6 @@ class Drifter:
     description = "Trains a neural net to race a car around a track"
     
     def __init__(self):
-        
-        self.largest = 0
         
         # --- constants ---
         self.PPM = 10.0  # pixels per meter
@@ -40,13 +40,15 @@ class Drifter:
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont("Arial", 16)
         self.graphics = True
+        self.crashbad = True
         
         #game variables
         self.command_mode = False
         self.command = 0
+        self.cmd = []
         self.playback_speed = 1
         self.frame_counter = 0 #for manipulating playback speed. only render one in every playback_speed frames
-        self.max_steps_per_episode = 250
+        self.max_steps_per_episode = 1000
         self.stats = { 'pop': 200}
         self.pressed_keys = []
         
@@ -82,7 +84,7 @@ class Drifter:
                 
     def step(self, action = [False, False, False, False]):
         
-        #reward is .05 if nothing happens, 1 if it hits a gate, 10 if it completes a lap, 0 if it hits a wall and ends simulation
+        #reward is .05 if nothing happens, 10 if it hits a gate, and 0 if it hits a wall. also ends simulation
         reward = .05
         flags = []
         
@@ -121,6 +123,7 @@ class Drifter:
                 else:
                     if event.key == K_RETURN:
                         parsed = self.command.split(" ")
+                        self.cmd = parsed   #this is for the other processes, see get_commands()
                         self.command_mode = False
                         if parsed[0] == "runtime":
                             self.max_steps_per_episode = int(parsed[1])
@@ -128,6 +131,11 @@ class Drifter:
                         elif parsed[0] == "generation" or parsed[0] == "population":
                             change_generation = int(parsed[1])
                             print("generation size changed to ",change_generation)
+                        elif parsed[0] == 'crashbad':
+                            if parsed[1].lower() in ['1','true','t','yes']:
+                                self.crashbad = True
+                            elif parsed[1].lower() in ['0','false', 'f','no']:
+                                self.crashbad = False
                         else:
                             print("command not recognized")
                                   
@@ -222,11 +230,12 @@ class Drifter:
                 
                 
         #change car color to red if it crashed
-        if self.car.contacts == []: self.car_color = 'blue' 
-        else: 
-            self.car_color = 'red'
-            #reward = 0
-            flags.append('crashed')
+        self.car_color = 'blue'
+        if self.crashbad:
+            for contact in self.car.contacts:
+                if self.car.contacts[0].contact.touching: #AABB collision bug fix, keep it
+                    self.car_color = 'red'
+                    flags.append('crashed')
                 
         if self.graphics:
             self.render()
@@ -242,8 +251,6 @@ class Drifter:
         for track in self.tracks:  
             for fixture in track[0].fixtures:
                 shape = fixture.shape
-                #vertices = [(track[0].transform * v) for v in shape.vertices]
-                #vertices = [(v[0], self.SCREEN_HEIGHT - v[1]) for v in vertices]
                 pygame.draw.polygon(self.screen, THECOLORS[track[1]], self.tfm(shape.vertices))
                 
         shape = self.car.fixtures[0].shape
@@ -279,7 +286,7 @@ class Drifter:
         if self.frame_counter >= self.playback_speed:
             pygame.display.flip()
             self.frame_counter = 0
-            self.clock.tick(self.TARGET_FPS)
+            self.clock.tick(self.TARGET_FPS*self.playback_speed) #Keep this change, it fixes fast playback low framrate bug
         
     
     def reset(self):
@@ -352,7 +359,7 @@ class Drifter:
         #self.box.massData.center = vec2(0,-10) #set center of mass
 
         
-    
+
     def mstep(self, action = [False, False, False, False]):
         '''manual step for controling the car manually. basically copy/pasted self.step then deleted half of it'''
         
@@ -471,11 +478,11 @@ class Drifter:
         
                 
         #change car color to red if it crashed
-        if self.car.contacts == []: self.car_color = 'blue' 
-        else: 
-            self.car_color = 'red'
-            #reward = 0
-            flags.append('crashed')
+        self.car_color = 'blue'
+        for contact in self.car.contacts:
+            if self.car.contacts[0].contact.touching: #AABB collision bug fix, keep it
+                self.car_color = 'red'
+                flags.append('crashed')
                 
         if self.graphics:
             self.render()
@@ -509,6 +516,16 @@ class Drifter:
         for point in pix:
             rv.append([(point[0]/self.PPM),(point[1]/self.PPM)])
         return rv
+    
+    def get_commands(self):
+        '''holds a command until the main loop reads it and sends it off to the
+        subprocesses. Then reset the command.'''
+        if self.cmd == []:
+            return []
+        else:
+            rv = self.cmd
+            self.cmd = []
+            return rv
         
         
 class myCallback(rayCastCallback):

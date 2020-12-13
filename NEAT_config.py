@@ -2,7 +2,7 @@
 fitness_criterion     = max
 fitness_threshold     = 3.9 
 no_fitness_termination = True
-pop_size              = 300
+pop_size              = 200
 reset_on_extinction   = False
 
 [DefaultGenome]
@@ -77,5 +77,5 @@ max_stagnation       = 20
 species_elitism      = 6
 
 [DefaultReproduction]
-elitism            = 4
+elitism            = 2
 survival_threshold = 0.30

@@ -1,55 +1,77 @@
+#!/usr/bin/env python3 
 # -*- coding: utf-8 -*-
 """
-Created on Sun Oct 18 19:40:02 2020
+Created on Mon Nov 30 11:42:13 2020
 
-@author: Nick Brusco
+@author: Nick
 """
-from Box2D import (b2World, b2Vec2, b2Vec2_zero)
-from Box2D.examples.framework import (Framework, Keys, main, FrameworkBase)
-from Box2D import (b2EdgeShape, b2FixtureDef, b2PolygonShape, b2_dynamicBody,
-                   b2_kinematicBody, b2_staticBody, b2ChainShape)
 
+import multiprocessing as mp
+import time
+import os
+import itertools
+
+def count_to(target, target2):
+    target *= 10000000 #ten million
+    i=0
+    while i < target:
+        i+=1
+    print('done')
+    print(f'second arg is {target2}') #to demonstrate multiple arguments
+    return os.getpid()
+
+if __name__ == '__main__':
+    
+    ''' Comparison using Process '''
+    starttime = time.time()
+    
+    jobs = []
+    
+    for i in range(round(mp.cpu_count()/2)):
+        a = mp.Process(target=count_to, kwargs={'target' : 1, 'target2' : 2})
+        jobs.append(a)
+        
+    for job in jobs:
+        job.start()
+
+    jobs[-1].join()
+
+    mpt = time.time()-starttime
+    print(mpt, ' is the multiprocessing time')
     
     
-class Drifter(Framework):
-    name = "Drifter"
-    description = "WASD to move and drift your car"
-    speed = 3  # platform speed
+    starttime = time.time()
+    
+    i=0
+    while( i<round(mp.cpu_count()/2)):
+        count_to(1,3)
+        i+=1
+    
+    spt = time.time()-starttime
+    print(spt, 'is the standard processing time')
+    
+    print(spt/mpt, " times faster with multiprocessing")
+   
+    
+    ''' Comparison using Pool '''
+    starttime = time.time()
+    
+    pool = mp.Pool(processes = round(mp.cpu_count()/2))
+    print(pool.starmap(count_to, zip([5]*5, itertools.repeat(4))   )) #starmap for multiple arguments
 
-    def __init__(self):
-        super(Drifter, self).__init__()
-
-
-        # The ground
-        ground = self.world.CreateBody(
-            shapes=b2ChainShape(vertices=[(-20, 0), (20, 0),(20,20),(-20,20)])
-        )
-
-        # The attachment
-        self.car = self.world.CreateDynamicBody(
-            position=(0, 3),
-            fixtures=b2FixtureDef(
-                shape=b2PolygonShape(box=(1, 2)), density=2.0),
-        )
-        
-        print(dir(self.world.gravity.Set(0,0)))
-        print(self.world.gravity.y)
+    mpt = time.time()-starttime
+    print(mpt, ' is the pool multiprocessing time')
 
 
-    def Keyboard(self, key):
-        if key == Keys.K_d:
-            self.platform.type = b2_dynamicBody
-        elif key == Keys.K_s:
-            self.platform.type = b2_staticBody
-        elif key == Keys.K_k:
-            self.platform.type = b2_kinematicBody
-            self.platform.linearVelocity = (-self.speed, 0)
-            self.platform.angularVelocity = 0
 
-    def Step(self, settings):
-        super(Drifter, self).Step(settings)
-
-        
-
-if __name__ == "__main__":
-    main(Drifter)
+    starttime = time.time()
+    
+    i=0
+    while( i<round(mp.cpu_count()/2)):
+        count_to(5,4)
+        i+=1
+    
+    spt = time.time()-starttime
+    print(spt, 'is the standard processing time')
+    
+    print(spt/mpt, " times faster with multiprocessing")
