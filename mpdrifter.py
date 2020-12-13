@@ -25,8 +25,11 @@ class MPDrifter:
         #setup MP
         self.q = q #queue for unsolved genomes
         self.r = r #queue for solved fitness scores
+        
+        
         self.track = track
         self.config = config
+        self.crashbad = True #whether crashing ends the round
         
         self.TARGET_FPS = 60
         self.TIME_STEP = 1.0 / self.TARGET_FPS
@@ -148,9 +151,11 @@ class MPDrifter:
                 
                 
         #change car color to red if it crashed
-        if self.car.contacts == []: pass
-        else: 
-            flags.append('crashed')
+        if self.crashbad:       #only if crashing is bad though
+            for contact in self.car.contacts:
+                if self.car.contacts[0].contact.touching: #AABB collision bug fix, keep it
+                    self.car_color = 'red'
+                    flags.append('crashed')
     
         self.world.Step(self.TIME_STEP, 10, 10)
         return self.get_state(), reward, flags
@@ -230,26 +235,32 @@ class MPDrifter:
         '''multiprocess! this function alone runs infinitely as a separate process until terminated.'''
         
         self.init_track(*self.track)  #need to do this here and not in __init__ for some reason
+        self.pid = os.getpid()
         
         while (1):
-            gpid = self.q.get() #take a genome plus ID from the queue, or wait if none are available
-            if gpid == None: #if the genome is None, kill yourself
+            fromq = self.q.get() #take from the queue, or wait if none are available
+            #cmd = self.c.get_nowait()
+            
+            if fromq == None: #if the genome is None, kill yourself
                 sys.exit()
                 return 0
-            genome_id, genome = gpid
+            elif type(fromq[1]) == list : #if the message is a command
+                if not fromq[0] == self.pid:
+                    self.q.put(fromq) #if the message isnt for us, put it back on the queue
+                    continue
+                self.run_command(fromq[1])
+                continue
+                
+            genome_id, genome = fromq
             
             self.reset()
-            
             genome.fitness = 0
             nn = neat.nn.RecurrentNetwork.create(genome, self.config)
             flags = []
             done = False
             fitness = 0
             for timestep in range(1, self.max_steps_per_episode):
-                '''very important note!!!! the reason your mp drifters were only smart up to a point before
-                was that when you increased runtime it DIDNT INCREASE FOR THE MPDRIFTERS!!!!! You need to
-                fix that A$AP ROCKY'''
-        
+                
                 #run inputs through neural net
                 outputs = nn.activate(self.get_state())
                 
@@ -304,6 +315,39 @@ class MPDrifter:
             rv.append([(point[0]/self.PPM),(point[1]/self.PPM)])
         return rv
         
+    def run_command(self, arg):
+        commands = {
+            'new track'     : self.new_track,
+            'new config'    : self.new_config,
+            'runtime'       : self.new_runtime,
+            'crashbad'      : self.set_crashbad
+        }
+        try:
+            commands.get(arg[0])(arg[1:])
+        except:
+            raise Exception(f'command not recognized: {arg[1]}')
+            
+    def new_track(self, args):
+        self.init_track(*args)
+        self.r.put(True) #tell main process that we were successful
+    
+    def new_runtime(self, arg):
+        self.max_steps_per_episode = int(arg[0])
+        self.r.put((self.pid, True)) #tell main process that we were successful
+        
+    def new_config(self,args):
+        '''not implemented yet'''
+        pass
+    
+    def set_crashbad(self, args):
+        if args[0].lower() in ['1','true','t','yes']:
+            self.crashbad = True
+        elif args[0].lower() in ['0','false', 'f','no']:
+            self.crashbad = False
+        else:
+            raise Exception(f'recieved a bad crashbad argument: {args[0]}')
+            return
+        self.r.put((self.pid, True)) #let the main process know we succeeded
     
         
 class myCallback(rayCastCallback):

@@ -19,9 +19,21 @@ class runner:
         self.r = r
         
     def f(self):
+        self.pid = os.getpid()
         while(1):
             fromq = self.q.get()
-            print(f"process {os.getpid()} as worker {self.name} recieved {fromq}")
+            #print(f"process {self.pid} as worker {self.name} recieved {fromq}")
+            
+            if type(fromq)==list:
+                '''this must be a command'''
+                if not fromq[0] == self.pid:
+                    self.q.put(fromq) #if the message isnt for us, put it back on the queue
+                    #print('returning message to queue')
+                    '''hopefully theres a better way to do this. Thousands of messages get returned to the queue'''
+                    continue
+                #print(f'process {self.pid} ({self.pid==os.getpid()}) recieved message {fromq}')
+                self.r.put('done')
+                continue
             
             if fromq == None: #kill process if we recieve None
                 sys.exit()
@@ -29,7 +41,7 @@ class runner:
             
             for i in range(10**7): pass #count to ten million to spin the wheels
             self.r.put(fromq*2)
-            print(f"process {os.getpid()} as worker {self.name} finished")
+            #print(f"process {self.pid} as worker {self.name} finished")
             
             
 def cleanup():
@@ -86,8 +98,18 @@ if __name__ == '__main__':
     q = mp.Queue() #tasks queue, a genome will go in here
     r = mp.Queue() #results queue, a fitness score will come out of here
 
+    
     run(mp.cpu_count())
-    test(500)
+    test(40)
+    
+    for process in processes:
+        q.put([process.pid, '69'])
+        
+    for i in range(len(processes)):
+        r.get()
+        
+    test(40)
+    
+    breakpoint()
 
-
-
+        

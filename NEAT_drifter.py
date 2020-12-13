@@ -83,6 +83,7 @@ def run(config_path):
     processes, drifters = [], []
     q = mp.Queue() #tasks queue, a genome will go in here
     r = mp.Queue() #results queue, a fitness score will come out of here
+    #c = mp.Queue() #commands go in here
     
     for i in range(num_workers):
         drifters.append( MPDrifter( q, r, rv, config ) )
@@ -96,6 +97,19 @@ def run(config_path):
         # Run a generation
         dft.graphics = False
         
+        command = dft.get_commands()            #see if user typed any commands
+        if command != []:                       #if they did:
+            for process in processes:           #forward the command to other processes
+                q.put([process.pid, command])
+            for i in range(len(processes)):     #make sure we get a response from each process
+                while(1):
+                    msg = r.get()               #make sure this is a response and not a genome
+                    if type(msg[1]) == bool:
+                        assert msg              #make sure each process was successful
+                        break
+                    else:
+                        r.put(msg)              #else put it back
+        
         winner = p.run(pe.finish_evaluate, 1) #get results of last training session
         p.start_gen(pe.start_evaluate, 1) #start next one so it can train while we display
         
@@ -106,7 +120,6 @@ def run(config_path):
         dft.graphics = True
         dft.reset()
         done = False
-        flags = []
         for timestep in range(1, dft.max_steps_per_episode):
                 
                 #run inputs through neural net

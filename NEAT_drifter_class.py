@@ -40,10 +40,12 @@ class Drifter:
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont("Arial", 16)
         self.graphics = True
+        self.crashbad = True
         
         #game variables
         self.command_mode = False
         self.command = 0
+        self.cmd = []
         self.playback_speed = 1
         self.frame_counter = 0 #for manipulating playback speed. only render one in every playback_speed frames
         self.max_steps_per_episode = 1000
@@ -82,7 +84,7 @@ class Drifter:
                 
     def step(self, action = [False, False, False, False]):
         
-        #reward is .05 if nothing happens, 1 if it hits a gate, 10 if it completes a lap, 0 if it hits a wall and ends simulation
+        #reward is .05 if nothing happens, 10 if it hits a gate, and 0 if it hits a wall. also ends simulation
         reward = .05
         flags = []
         
@@ -121,6 +123,7 @@ class Drifter:
                 else:
                     if event.key == K_RETURN:
                         parsed = self.command.split(" ")
+                        self.cmd = parsed   #this is for the other processes, see get_commands()
                         self.command_mode = False
                         if parsed[0] == "runtime":
                             self.max_steps_per_episode = int(parsed[1])
@@ -128,6 +131,11 @@ class Drifter:
                         elif parsed[0] == "generation" or parsed[0] == "population":
                             change_generation = int(parsed[1])
                             print("generation size changed to ",change_generation)
+                        elif parsed[0] == 'crashbad':
+                            if parsed[1].lower() in ['1','true','t','yes']:
+                                self.crashbad = True
+                            elif parsed[1].lower() in ['0','false', 'f','no']:
+                                self.crashbad = False
                         else:
                             print("command not recognized")
                                   
@@ -223,10 +231,11 @@ class Drifter:
                 
         #change car color to red if it crashed
         self.car_color = 'blue'
-        for contact in self.car.contacts:
-            if self.car.contacts[0].contact.touching: #AABB collision bug fix, keep it
-                self.car_color = 'red'
-                flags.append('crashed')
+        if self.crashbad:
+            for contact in self.car.contacts:
+                if self.car.contacts[0].contact.touching: #AABB collision bug fix, keep it
+                    self.car_color = 'red'
+                    flags.append('crashed')
                 
         if self.graphics:
             self.render()
@@ -314,9 +323,6 @@ class Drifter:
         self.bodies = []
         self.tracks = []
         
-        left.reverse()   #did not fix the early collision bug
-        right.reverse()
-        
         #track setup
         outer_track = self.world.CreateBody(shapes=chainShape(vertices=self.rtfm(left)))
         inner_track = self.world.CreateBody(shapes=chainShape(vertices=self.rtfm(right)))
@@ -353,7 +359,7 @@ class Drifter:
         #self.box.massData.center = vec2(0,-10) #set center of mass
 
         
-    
+
     def mstep(self, action = [False, False, False, False]):
         '''manual step for controling the car manually. basically copy/pasted self.step then deleted half of it'''
         
@@ -510,6 +516,16 @@ class Drifter:
         for point in pix:
             rv.append([(point[0]/self.PPM),(point[1]/self.PPM)])
         return rv
+    
+    def get_commands(self):
+        '''holds a command until the main loop reads it and sends it off to the
+        subprocesses. Then reset the command.'''
+        if self.cmd == []:
+            return []
+        else:
+            rv = self.cmd
+            self.cmd = []
+            return rv
         
         
 class myCallback(rayCastCallback):
