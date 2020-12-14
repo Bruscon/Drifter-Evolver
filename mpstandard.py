@@ -13,10 +13,12 @@ import time
 import os, gc, sys
 
 class runner:
-    def __init__(self, name, q, r):
+    def __init__(self, name, q, r, dc):
         self.name = name
         self.q = q
         self.r = r
+        self.dc = dc
+        self.x = 7
         
     def f(self):
         self.pid = os.getpid()
@@ -24,24 +26,20 @@ class runner:
             fromq = self.q.get()
             #print(f"process {self.pid} as worker {self.name} recieved {fromq}")
             
-            if type(fromq)==list:
-                '''this must be a command'''
-                if not fromq[0] == self.pid:
-                    self.q.put(fromq) #if the message isnt for us, put it back on the queue
-                    #print('returning message to queue')
-                    '''hopefully theres a better way to do this. Thousands of messages get returned to the queue'''
-                    continue
-                #print(f'process {self.pid} ({self.pid==os.getpid()}) recieved message {fromq}')
-                self.r.put('done')
+            if fromq == 'read dc': 
+                self.process_command(self.dc.get())
                 continue
-            
             if fromq == None: #kill process if we recieve None
                 sys.exit()
                 return None
             
-            for i in range(10**7): pass #count to ten million to spin the wheels
+            for i in range(10**self.x): pass #count to ten million to spin the wheels
             self.r.put(fromq*2)
             #print(f"process {self.pid} as worker {self.name} finished")
+            
+    def process_command(self, instruction):
+        print(f'process {self.pid} recieved message {instruction}')
+        self.dc.task_done()
             
             
 def cleanup():
@@ -54,7 +52,7 @@ def cleanup():
     
     global processes, runners
     
-    for process in processes:
+    for process, _ in processes:
         process.kill()
         process.terminate()
         process.join(0)
@@ -83,9 +81,10 @@ def run(num_processes):
     global processes, runners
     
     for i in range(num_processes):
-        runners.append( runner(i, q, r ))
-        processes.append( mp.Process(target=runners[-1].f, args=() ) )
-        processes[-1].start()
+        dc = mp.JoinableQueue() #direct communication queue to this process only
+        runners.append( runner(i, q, r, dc ))
+        processes.append( ( mp.Process(target=runners[-1].f, args=() ) , dc))
+        processes[-1][0].start()
     
     if not test(40) == test(40): print('ALERT! CHECKSUMS NOT EQUAL!'*4)
     
@@ -102,11 +101,18 @@ if __name__ == '__main__':
     run(mp.cpu_count())
     test(40)
     
-    for process in processes:
-        q.put([process.pid, '69'])
+    _start = time.time()
+    
+    for process, dc in processes:       #send a message to each subprocess individually
+        dc.put('execute order 69')
         
-    for i in range(len(processes)):
-        r.get()
+    for process, dc in processes:       #tell the subprocesses to read their direct coms
+        q.put('read dc')
+        
+    for _, dc in processes:             #recieve confirmation messages from all subprocesses
+        dc.join()
+        
+    print(f'took {round(time.time()-_start,2)} seconds to send messages to 12 subprocesses')
         
     test(40)
     

@@ -104,6 +104,7 @@ class TrackGen:
                      #load existing track
                      filename = filedialog.askopenfilename(initialdir = "tracks", defaultextension = '.track', title = "Select a Track")
                      if filename in ['',None] : break #handle a failed load
+                     print(filename)
                      with open(filename,'rb') as dbfile :
                          db = pickle.load(dbfile)
                      print('Track loaded')
@@ -299,7 +300,8 @@ class TrackGen:
         '''takes the three lists of points (rbound, lbound, points) and generates
         all the checkpoints for the drifter in a new list called checkpoints'''
         
-        GATESPERPOINT = 5 #number of gates drawn per point set in self.points
+        GATESPERPOINT = 20 #number of gates drawn per point set in self.points
+        #CHANGE SELF.RESET() IN MPDRIFTER AND DRIFTER IF YOU CHANGE THIS!!!
         self.checkpoints = []
             
         for i in range(len(self.points)-1):

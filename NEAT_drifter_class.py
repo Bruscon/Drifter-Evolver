@@ -48,9 +48,11 @@ class Drifter:
         self.cmd = []
         self.playback_speed = 1
         self.frame_counter = 0 #for manipulating playback speed. only render one in every playback_speed frames
-        self.max_steps_per_episode = 1000
+        self.max_steps_per_episode = 500
         self.stats = { 'pop': 200}
         self.pressed_keys = []
+        
+        self.num_trials = 3     #number of times a NN gets evaluated at different locations
         
         self.pressed_keys = []
         self.time_pressed = {
@@ -63,11 +65,11 @@ class Drifter:
         #for whiskers
         #         angles, lengths, intercept
         self.rays = np.array( 
-                [[-np.pi/2, 100,     100],
-                [-np.pi/4,  100,     100],
+                [[-np.pi/3, 100,     100],
+                [-np.pi/7,  100,     100],
                 [0,         100,     100],
-                [np.pi/4,   100,     100],
-                [np.pi/2,   100,     100]])
+                [np.pi/7,   100,     100],
+                [np.pi/3,   100,     100]])
         
         #checkpoints, overwritten when using trackgen
         self.cp = 0
@@ -238,7 +240,10 @@ class Drifter:
                     flags.append('crashed')
                 
         if self.graphics:
-            self.render()
+            self.frame_counter += 1
+            if self.frame_counter >= self.playback_speed:
+                self.render()
+                self.frame_counter = 0
     
         self.world.Step(self.TIME_STEP, 10, 10)
         return self.get_state(), reward, flags
@@ -281,17 +286,13 @@ class Drifter:
         if self.command_mode:
             self.screen.blit(self.font.render("Cmd: " + self.command, 1, THECOLORS["green"]), (10,30))
     
-        
-        self.frame_counter += 1
-        if self.frame_counter >= self.playback_speed:
-            pygame.display.flip()
-            self.frame_counter = 0
-            self.clock.tick(self.TARGET_FPS*self.playback_speed) #Keep this change, it fixes fast playback low framrate bug
+        pygame.display.flip()
+        self.clock.tick(self.TARGET_FPS) #Keep this change, it fixes fast playback low framrate bug
         
     
     def reset(self):
         #spawn point index
-        spi = random.randint(0,len(self.centerline)-2)
+        spi = self.trials[self.trial]
         self.car.position= self.rtfm(self.centerline[spi])
         self.car.angle = np.arctan2(self.centerline[spi+1][1] - self.centerline[spi][1], self.centerline[spi+1][0] - self.centerline[spi][0])
         self.car.angularVelocity = 0.0
@@ -323,7 +324,7 @@ class Drifter:
         self.bodies = []
         self.tracks = []
         
-        #track setup
+        # --- track setup
         outer_track = self.world.CreateBody(shapes=chainShape(vertices=self.rtfm(left)))
         inner_track = self.world.CreateBody(shapes=chainShape(vertices=self.rtfm(right)))
         self.centerline = centerline
@@ -352,11 +353,14 @@ class Drifter:
         
         self.direction = np.arctan2(centerline[1][1] - centerline[0][1], centerline[1][0] - centerline[0][0])
         
-        # Create car
+        # --- Create car
         self.car = self.world.CreateDynamicBody(position=self.spawn, angle= self.direction, linearDamping=.3, angularDamping = 6)
         self.car_color = 'blue'
         self.box = self.car.CreatePolygonFixture(box=(1, .5), density=1, friction=0.002)
-        #self.box.massData.center = vec2(0,-10) #set center of mass
+        
+        # --- trial spawn locations
+        self.trial = 0
+        self.trials = [random.randint(0, len(self.centerline)-2) for _ in range(self.num_trials)]       #starting point for each trial
 
         
 

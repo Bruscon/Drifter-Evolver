@@ -21,15 +21,18 @@ class MPDrifter:
     name = "Multiprocessing Drifter"
     description = "The multiprocessing-compatible version of Drifter"
     
-    def __init__(self,q,r,track, config):
+    def __init__(self, q, r, dc, track, trials, config):
         #setup MP
-        self.q = q #queue for unsolved genomes
-        self.r = r #queue for solved fitness scores
+        self.q = q      #queue for unsolved genomes
+        self.r = r      #queue for solved fitness scores
+        self.dc = dc    #queue for direct comms to this subprocess
         
         
         self.track = track
         self.config = config
         self.crashbad = True #whether crashing ends the round
+        self.trial = 0
+        self.trials = trials
         
         self.TARGET_FPS = 60
         self.TIME_STEP = 1.0 / self.TARGET_FPS
@@ -38,7 +41,7 @@ class MPDrifter:
         self.PPM = 10.0  # pixels per meter
         self.SCREEN_WIDTH, self.SCREEN_HEIGHT = 1300, 700
 
-        self.max_steps_per_episode = 1000
+        self.max_steps_per_episode = 500
         self.stats = { 'pop': 200}
         
         self.pressed_keys = []
@@ -52,11 +55,11 @@ class MPDrifter:
         #for whiskers
         #         angles, lengths, intercept
         self.rays = np.array( 
-                [[-np.pi/2, 100,     100],
-                [-np.pi/4,  100,     100],
+                [[-np.pi/3, 100,     100],
+                [-np.pi/6,  100,     100],
                 [0,         100,     100],
-                [np.pi/4,   100,     100],
-                [np.pi/2,   100,     100]])
+                [np.pi/6,   100,     100],
+                [np.pi/3,   100,     100]])
         
         #self.init_track(*self.track)
         
@@ -163,7 +166,7 @@ class MPDrifter:
     
     def reset(self):
         #spawn point index
-        spi = random.randint(0,len(self.centerline)-2)
+        spi = self.trials[self.trial]
         self.car.position= self.rtfm(self.centerline[spi])
         self.car.angle = np.arctan2(self.centerline[spi+1][1] - self.centerline[spi][1], self.centerline[spi+1][0] - self.centerline[spi][0])
         self.car.angularVelocity = 0.0
@@ -244,46 +247,46 @@ class MPDrifter:
             if fromq == None: #if the genome is None, kill yourself
                 sys.exit()
                 return 0
-            elif type(fromq[1]) == list : #if the message is a command
-                if not fromq[0] == self.pid:
-                    self.q.put(fromq) #if the message isnt for us, put it back on the queue
-                    continue
-                self.run_command(fromq[1])
+            if fromq == 'read dc': 
+                self.process_command()
                 continue
                 
             genome_id, genome = fromq
-            
-            self.reset()
-            genome.fitness = 0
             nn = neat.nn.RecurrentNetwork.create(genome, self.config)
-            flags = []
-            done = False
+            genome.fitness = 0
             fitness = 0
-            for timestep in range(1, self.max_steps_per_episode):
-                
-                #run inputs through neural net
-                outputs = nn.activate(self.get_state())
-                
-                #convert probabilities to binary key press outputs
-                keys = []
-                for key in outputs:
-                    keys.append(key > 0)
-                
-                #apply outputs to game 
-                state, reward, flags = self.step(keys)
-                #print('pid: ', os.getpid(), ', reward: ',reward)
-                
-                for flag in flags:
-                    if flag == 'crashed':
-                        #print('pid: ', os.getpid(), ' crashed! ')
-                        done = True
-                        break
+            
+            self.trial = 0
+            for trl in self.trials:
+                self.reset()
+                self.trial += 1
+                done = False      
+                flags = []
+                for timestep in range(1, self.max_steps_per_episode):
                     
-                fitness += reward
-                #print('pid: ', os.getpid(), ', fitness: ',fitness)
-        
-                if done:
-                    break
+                    #run inputs through neural net
+                    outputs = nn.activate(self.get_state())
+                    
+                    #convert probabilities to binary key press outputs
+                    keys = []
+                    for key in outputs:
+                        keys.append(key > 0)
+                    
+                    #apply outputs to game 
+                    state, reward, flags = self.step(keys)
+                    #print('pid: ', os.getpid(), ', reward: ',reward)
+                    
+                    for flag in flags:
+                        if flag == 'crashed':
+                            #print('pid: ', os.getpid(), ' crashed! ')
+                            done = True
+                            break
+                        
+                    fitness += reward
+                    #print('pid: ', os.getpid(), ', fitness: ',fitness)
+            
+                    if done:
+                        break
             
             genome.fitness = fitness
             #print('pid: ', os.getpid(), ', final fitness: ',genome.fitness)
@@ -315,10 +318,12 @@ class MPDrifter:
             rv.append([(point[0]/self.PPM),(point[1]/self.PPM)])
         return rv
         
-    def run_command(self, arg):
+    def process_command(self):
+        arg = self.dc.get()
         commands = {
             'new track'     : self.new_track,
             'new config'    : self.new_config,
+            'start points'  : self.start_points,
             'runtime'       : self.new_runtime,
             'crashbad'      : self.set_crashbad
         }
@@ -326,14 +331,14 @@ class MPDrifter:
             commands.get(arg[0])(arg[1:])
         except:
             raise Exception(f'command not recognized: {arg[1]}')
+        self.dc.task_done() #allow main process to continue
             
     def new_track(self, args):
+        ''' untested'''
         self.init_track(*args)
-        self.r.put(True) #tell main process that we were successful
     
     def new_runtime(self, arg):
         self.max_steps_per_episode = int(arg[0])
-        self.r.put((self.pid, True)) #tell main process that we were successful
         
     def new_config(self,args):
         '''not implemented yet'''
@@ -346,8 +351,9 @@ class MPDrifter:
             self.crashbad = False
         else:
             raise Exception(f'recieved a bad crashbad argument: {args[0]}')
-            return
-        self.r.put((self.pid, True)) #let the main process know we succeeded
+        
+    def start_points(self, arg):
+        self.trials = arg[0]
     
         
 class myCallback(rayCastCallback):
