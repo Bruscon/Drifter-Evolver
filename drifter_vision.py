@@ -49,12 +49,12 @@ time_pressed = {
     }
 
 #for whiskers
-#         angles, lengths, intercept
-rays = [[-np.pi/2,  10,     0],
-        [-np.pi/4,  15,     0],
-        [0,         20,     0],
-        [np.pi/4,   15,     0],
-        [np.pi/2,   10,     0]]
+#         angles, lengths, intercept, normals
+rays = [[-np.pi/2,  10,     0,          0],
+        [-np.pi/4,  15,     0,          0],
+        [0,         20,     0,          0],
+        [np.pi/4,   15,     0,          0],
+        [np.pi/2,   10,     0,          0]]
 
 #checkpoints
 cp =15
@@ -145,7 +145,6 @@ while running:
     callback = RayCastMultipleCallback()
     world.RayCast(callback, cpts[cp][0], cpts[cp][1])
     if len(callback.points)>2:
-        print(callback.fixtures)
         cp += 1
         if cp >= len(cpts): cp=0
     pygame.draw.line(screen, THECOLORS['green'],tfrm(cpts[cp][0]), tfrm(cpts[cp][1]), 1)
@@ -172,6 +171,9 @@ while running:
         else:
             pygame.draw.line(screen, THECOLORS['orange'],tfrm(point1), tfrm(point2), 1)
             ray[2] = np.linalg.norm(point1 - point2)
+            
+        for normal in callback.normals:
+            pygame.draw.line(screen, THECOLORS['black'],tfrm(callback.points[0]),tfrm(callback.points[0] + callback.normals[0]))
             
 
     world.Step(TIME_STEP, 10, 10)

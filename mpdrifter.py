@@ -55,11 +55,11 @@ class MPDrifter:
         #for whiskers
         #         angles, lengths, intercept
         self.rays = np.array( 
-                [[-np.pi/3, 100,     100],
-                [-np.pi/6,  100,     100],
-                [0,         100,     100],
-                [np.pi/6,   100,     100],
-                [np.pi/3,   100,     100]])
+                [[-np.pi/3, 130,     100,       0],
+                [-np.pi/7,  130,     100,       0],
+                [0,         130,     100,       0],
+                [np.pi/7,   130,     100,       0],
+                [np.pi/3,   130,     100,       0]])
         
         #self.init_track(*self.track)
         
@@ -149,6 +149,7 @@ class MPDrifter:
             
             if callback.hit:
                 ray[2] = np.linalg.norm(point1 - callback.point)
+                ray[3] = np.dot((np.cos(self.car.fixtures[0].body.angle) , np.sin(self.car.fixtures[0].body.angle)) , callback.normal)
             else:
                 ray[2] = np.linalg.norm(point1 - point2)
                 
@@ -160,7 +161,7 @@ class MPDrifter:
                     self.car_color = 'red'
                     flags.append('crashed')
     
-        self.world.Step(self.TIME_STEP, 10, 10)
+        self.world.Step(self.TIME_STEP, 2, 2)
         return self.get_state(), reward, flags
         
     
@@ -182,12 +183,16 @@ class MPDrifter:
     
     def get_state(self):
         state = [self.car.GetWorldVector((1,0)).dot(self.car.linearVelocity),   #cars speed
-                 self.car.angle % (np.pi*2),                                    #cars heading
-                 self.rays[0,-1],                                               #whisker distances
-                 self.rays[1,-1],
-                 self.rays[2,-1],
-                 self.rays[3,-1],
-                 self.rays[4,-1],
+                 self.rays[0,2],                                               #whisker distances
+                 self.rays[1,2],
+                 self.rays[2,2],
+                 self.rays[3,2],
+                 self.rays[4,2],
+                 self.rays[0,3],                                               #whisker normals
+                 self.rays[1,3],
+                 self.rays[2,3],
+                 self.rays[3,3],
+                 self.rays[4,3],
                  ]
         return state
     
@@ -320,6 +325,7 @@ class MPDrifter:
         
     def process_command(self):
         arg = self.dc.get()
+        #print(f'process {os.getpid()} recieved command {arg}')
         commands = {
             'new track'     : self.new_track,
             'new config'    : self.new_config,
@@ -327,10 +333,10 @@ class MPDrifter:
             'runtime'       : self.new_runtime,
             'crashbad'      : self.set_crashbad
         }
-        try:
-            commands.get(arg[0])(arg[1:])
-        except:
-            raise Exception(f'command not recognized: {arg[1]}')
+        func = commands.get(arg[0])
+        assert func != None
+        func(arg[1:])
+
         self.dc.task_done() #allow main process to continue
             
     def new_track(self, args):

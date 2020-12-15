@@ -63,13 +63,13 @@ class Drifter:
             }
         
         #for whiskers
-        #         angles, lengths, intercept
+        #         angles, lengths, intercept, normal dot direction 
         self.rays = np.array( 
-                [[-np.pi/3, 100,     100],
-                [-np.pi/7,  100,     100],
-                [0,         100,     100],
-                [np.pi/7,   100,     100],
-                [np.pi/3,   100,     100]])
+                [[-np.pi/3, 130,     100,       0],
+                [-np.pi/7,  130,     100,       0],
+                [0,         130,     100,       0],
+                [np.pi/7,   130,     100,       0],
+                [np.pi/3,   130,     100,       0]])
         
         #checkpoints, overwritten when using trackgen
         self.cp = 0
@@ -124,7 +124,7 @@ class Drifter:
                 #commands
                 else:
                     if event.key == K_RETURN:
-                        parsed = self.command.split(" ")
+                        parsed = self.command.strip().split(" ")
                         self.cmd = parsed   #this is for the other processes, see get_commands()
                         self.command_mode = False
                         if parsed[0] == "runtime":
@@ -201,8 +201,6 @@ class Drifter:
         self.car.ApplyForce(-12*self.car.GetWorldVector(localVector=(abs(sideforce/5),sideforce)), self.car.GetWorldPoint(localPoint=(0.0,0.0)),True)
         #force in x ensures drifting doesnt penalize your speed too bad ^           ^
 
-        
-                    
         #check checkpoint for collisions
         was_hit = True
         while was_hit:                  #to prevent gate skipping at high speed
@@ -227,6 +225,7 @@ class Drifter:
             
             if callback.hit:
                 ray[2] = np.linalg.norm(point1 - callback.point)
+                ray[3] = np.dot((np.cos(self.car.fixtures[0].body.angle) , np.sin(self.car.fixtures[0].body.angle)) , callback.normal)
             else:
                 ray[2] = np.linalg.norm(point1 - point2)
                 
@@ -245,7 +244,7 @@ class Drifter:
                 self.render()
                 self.frame_counter = 0
     
-        self.world.Step(self.TIME_STEP, 10, 10)
+        self.world.Step(self.TIME_STEP, 2, 2)
         return self.get_state(), reward, flags
         
         
@@ -266,7 +265,6 @@ class Drifter:
         pygame.draw.line(self.screen, THECOLORS['green'],self.tfm(self.cpts[self.cp][0]), self.tfm(self.cpts[self.cp][1]), 1)
         
         
-        
         #draw whiskers
         point1 = self.car.position
         for ray in self.rays:  
@@ -280,11 +278,14 @@ class Drifter:
             if callback.hit:
                 pygame.draw.circle(self.screen, THECOLORS['red'], (int(callback.point[0]*self.PPM),int(callback.point[1]*self.PPM)),3)
                 pygame.draw.line(self.screen, THECOLORS['red'],(point1*self.PPM), (callback.point*self.PPM), 1)
+                pygame.draw.line(self.screen, THECOLORS['black'],self.tfm(callback.point),self.tfm(callback.point + callback.normal))
             else:
                 pygame.draw.line(self.screen, THECOLORS['orange'],(point1*self.PPM), (point2*self.PPM), 1)
+                
              
         if self.command_mode:
             self.screen.blit(self.font.render("Cmd: " + self.command, 1, THECOLORS["green"]), (10,30))
+            
     
         pygame.display.flip()
         self.clock.tick(self.TARGET_FPS) #Keep this change, it fixes fast playback low framrate bug
@@ -308,12 +309,16 @@ class Drifter:
     
     def get_state(self):
         state = [self.car.GetWorldVector((1,0)).dot(self.car.linearVelocity),   #cars speed
-                 self.car.angle % (np.pi*2),                                    #cars heading
-                 self.rays[0,-1],                                               #whisker distances
-                 self.rays[1,-1],
-                 self.rays[2,-1],
-                 self.rays[3,-1],
-                 self.rays[4,-1],
+                 self.rays[0,2],                                               #whisker distances
+                 self.rays[1,2],
+                 self.rays[2,2],
+                 self.rays[3,2],
+                 self.rays[4,2],
+                 self.rays[0,3],                                               #whisker normals
+                 self.rays[1,3],
+                 self.rays[2,3],
+                 self.rays[3,3],
+                 self.rays[4,3],
                  ]
         return state
     
@@ -366,7 +371,6 @@ class Drifter:
 
     def mstep(self, action = [False, False, False, False]):
         '''manual step for controling the car manually. basically copy/pasted self.step then deleted half of it'''
-        
         flags = []
         
         for event in pygame.event.get():
@@ -491,8 +495,7 @@ class Drifter:
         if self.graphics:
             self.render()
     
-        self.world.Step(self.TIME_STEP, 10, 10)
-        
+        self.world.Step(self.TIME_STEP, 2, 2)
         
         
         
@@ -500,7 +503,9 @@ class Drifter:
         '''transforms from meters to pixels for single values and points'''
         if type(meters) == int:
             return meters*self.PPM
-        elif type(meters) == list:
+        if type(meters) == Box2D.Box2D.b2Vec2:
+            return (round(meters[0]*self.PPM), round(meters[1]*self.PPM))
+        if type(meters) == list:
             rv = []
             for item in meters:
                 if type(item) in [list,tuple]: #handle lists of lists of points

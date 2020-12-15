@@ -68,7 +68,7 @@ def run(config_path):
     '''
     
     if 't' in args:         #if were using a premade track
-        with open('tracks/Drifty.track','rb') as dbfile :
+        with open('tracks/Bendy.track','rb') as dbfile :
             db = pickle.load(dbfile)
         rv = (db['points'],db['lbound'],db['rbound'],db['checkpoints'])
         dft.init_track(*rv)
@@ -100,6 +100,7 @@ def run(config_path):
     q = mp.Queue() #tasks queue, a genome will go in here
     r = mp.Queue() #results queue, a fitness score will come out of here
     
+
     for i in range(num_workers):
         dc = mp.JoinableQueue() #direct communication queue to this process only
         drifters.append( MPDrifter( q, r, dc, rv, dft.trials, config ) )
@@ -129,6 +130,9 @@ def run(config_path):
         
         winner_net = neat.nn.RecurrentNetwork.create(winner, config)
         
+        dft.step()
+        if not dft.graphics:
+            continue
         
         # --- replay winner
         dft.trial = 0
@@ -163,4 +167,8 @@ if __name__ == '__main__':
     # current working directory.
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'NEAT_config.py')
+    
+    #declaring global variables
+    processes, q = 0,0
+    
     run(config_path)
