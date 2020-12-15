@@ -48,7 +48,7 @@ class Drifter:
         self.cmd = []
         self.playback_speed = 1
         self.frame_counter = 0 #for manipulating playback speed. only render one in every playback_speed frames
-        self.max_steps_per_episode = 500
+        self.max_steps_per_episode = 1000
         self.stats = { 'pop': 200}
         self.pressed_keys = []
         
@@ -64,12 +64,8 @@ class Drifter:
         
         #for whiskers
         #         angles, lengths, intercept, normal dot direction 
-        self.rays = np.array( 
-                [[-np.pi/3, 130,     100,       0],
-                [-np.pi/7,  130,     100,       0],
-                [0,         130,     100,       0],
-                [np.pi/7,   130,     100,       0],
-                [np.pi/3,   130,     100,       0]])
+        angles = [0, 7*np.pi/8, -7*np.pi/8, np.pi/2, -np.pi/2, *[float(x) for x in np.split(np.linspace(-np.pi/4, np.pi/4, 6), 6)]]
+        self.rays = np.array([[x, 130, 100, 0] for x in angles])
         
         #checkpoints, overwritten when using trackgen
         self.cp = 0
@@ -309,17 +305,8 @@ class Drifter:
     
     def get_state(self):
         state = [self.car.GetWorldVector((1,0)).dot(self.car.linearVelocity),   #cars speed
-                 self.rays[0,2],                                               #whisker distances
-                 self.rays[1,2],
-                 self.rays[2,2],
-                 self.rays[3,2],
-                 self.rays[4,2],
-                 self.rays[0,3],                                               #whisker normals
-                 self.rays[1,3],
-                 self.rays[2,3],
-                 self.rays[3,3],
-                 self.rays[4,3],
-                 ]
+                 *np.split(self.rays[:,2],len(self.rays[:,2])),*np.split(self.rays[:,3],len(self.rays[:,3]))
+                 ] #whisker distances,                  whisker normals
         return state
     
     def init_track(self, centerline, left, right, checkpoints):

@@ -18,9 +18,9 @@ import atexit
 
 import ntools
 
-
+'''
 @atexit.register
-def kill_subprocesses():
+def kill_subprocesses(processes, q):
     print("killing all processes and exiting...")
     global processes, q
     for process, _ in processes:
@@ -30,7 +30,7 @@ def kill_subprocesses():
         process.terminate()
         process.join(0)
     print('Complete.')
-    
+'''
     
 def send_to_subprocesses(command):
     global processes, q
@@ -68,7 +68,7 @@ def run(config_path):
     '''
     
     if 't' in args:         #if were using a premade track
-        with open('tracks/Bendy.track','rb') as dbfile :
+        with open('tracks/Windy.track','rb') as dbfile :
             db = pickle.load(dbfile)
         rv = (db['points'],db['lbound'],db['rbound'],db['checkpoints'])
         dft.init_track(*rv)
@@ -94,10 +94,11 @@ def run(config_path):
     '''The checkpoint files keep growing in size, after a few thousand generations 
     theyre 50+ Mb. No idea why, definitely fix this '''
             
-    global processes, q
     num_workers = max(2, mp.cpu_count()-2)
-    processes, drifters = [], []
-    q = mp.Queue() #tasks queue, a genome will go in here
+    global processes, q
+    processes = []
+    drifters = []
+    q = mp.Queue() #tasks queue
     r = mp.Queue() #results queue, a fitness score will come out of here
     
 
@@ -165,10 +166,7 @@ if __name__ == '__main__':
     # Determine path to configuration file. This path manipulation is
     # here so that the script will run successfully regardless of the
     # current working directory.
+    global processes, q
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'NEAT_config.py')
-    
-    #declaring global variables
-    processes, q = 0,0
-    
     run(config_path)
