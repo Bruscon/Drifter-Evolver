@@ -43,9 +43,10 @@ Settings relating to the Neural Network are stored in "NEAT_config.py." Feel fre
 
 ## Installation
 
-I dont recommend that anyone tries to install this themselves. But if you do, maybe this will help:
+I dont recommend that anyone tries to install this. It will only bring you pain.  
+If you foolishly choose to ignore this warning, maybe this will help lessen the suffering:  
 
-1.	You’ll need anaconda set up. You’ll also need a number of libraries installed, including: 
+1.	You’ll need an anaconda environment set up. You’ll also need a number of libraries installed, including: 
   * Pygame
   * Pymunk
   * PyBox2D
