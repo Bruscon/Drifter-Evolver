@@ -68,7 +68,7 @@ def run(config_path):
     '''
     
     if 't' in args:         #if were using a premade track
-        with open('tracks/Windy.track','rb') as dbfile :
+        with open('tracks/bendy.track','rb') as dbfile :
             db = pickle.load(dbfile)
         rv = (db['points'],db['lbound'],db['rbound'],db['checkpoints'])
         dft.init_track(*rv)
@@ -84,9 +84,9 @@ def run(config_path):
             dft.mstep()
 
     # Create the population, which is the top-level object for a NEAT run.
-    #p = neat.Population(config)
+    p = neat.Population(config)
     #turns out its really easy to restore an old checkpoint...
-    p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-2199')
+    #p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-2199')
     
     # Add a stdout reporter to show progress in the terminal.
     p.add_reporter(neat.StdOutReporter(True))
