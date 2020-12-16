@@ -70,6 +70,7 @@ gate-skipping when crashbad disabled bug
 gates per point bug/ incompatability with old/new tracks (5 GPP vs 20)
 move pygame and graphics to separate class
 make Drifter and MPDrifter inherit from the same base class so you dont have to keep copying over changes
+weird bug where training stops until i type any letter into the command line. there shouldnt be any inputs or breaklines...
 
 
 ## License
