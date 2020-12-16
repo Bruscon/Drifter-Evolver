@@ -56,8 +56,9 @@ I dont recommend that anyone tries to install this themselves. But if you do, ma
 
 ## Bugs and Todo:
 
-This section isnt relevant to you unless youre Nick coming back to this project months after dropping it, in which case you need to get your ass to work. 
+This section isnt relevant to you unless youre Nick coming back to this project months after dropping it, in which case get your ass to work son 
 
+move pygame and graphics to separate class, this should make main window much more responsive
 prevent timeout computational time penalties by killing simulations where the fitness does not increase for X frames  
 there is that annoying collision bug. Might have to add a collision reporter (?) in box2d to catch every single collision  
 make it faster by profiling it with cprofile  
@@ -67,11 +68,9 @@ Overflow bug
 auto-set frame limits (simulation time) based on % completion  
 NN visualizer  
 gate-skipping when crashbad disabled bug  
-gates per point bug/ incompatability with old/new tracks (5 GPP vs 20)  
-move pygame and graphics to separate class  
+gates per point bug/ incompatability with old/new tracks (5 GPP vs 20). Simplest solution is probably to have mpdrifter and neat_drifter autodetect GPP 
 make Drifter and MPDrifter inherit from the same base class so you dont have to keep copying over changes  
 weird bug where training stops until i type any letter into the command line. there shouldnt be any inputs or breaklines. Might have something to do with hitting 's' on an unresponsive window  
-
 
 ## License
 [MIT](https://choosealicense.com/licenses/mit/)
