@@ -300,7 +300,7 @@ class TrackGen:
         '''takes the three lists of points (rbound, lbound, points) and generates
         all the checkpoints for the drifter in a new list called checkpoints'''
         
-        GATESPERPOINT = 20 #number of gates drawn per point set in self.points
+        GATESPERPOINT = 5 #number of gates drawn per point set in self.points
         #CHANGE SELF.RESET() IN MPDRIFTER AND DRIFTER IF YOU CHANGE THIS!!!
         self.checkpoints = []
             
