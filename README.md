@@ -46,11 +46,11 @@ Settings relating to the Neural Network are stored in "NEAT_config.py." Feel fre
 I dont recommend that anyone tries to install this themselves. But if you do, maybe this will help:
 
 1.	You’ll need anaconda set up. You’ll also need a number of libraries installed, including: 
-  *Pygame
-  *Pymunk
-  *PyBox2D
-  *Numpy
-  *Neat (you’ll find it on google under “neat-python”)
+  * Pygame
+  * Pymunk
+  * PyBox2D
+  * Numpy
+  * Neat (you’ll find it on google under “neat-python”)
 
 2. I had to heavily modify the multiprocessing part of the neat library file to make multiprocessing work. You will need to find your neat-python installation and manually replace the files 'parallel.py' and 'population.py' with the versions found here in this repository
 
@@ -58,18 +58,19 @@ I dont recommend that anyone tries to install this themselves. But if you do, ma
 
 This section isnt relevant to you unless youre Nick coming back to this project months after dropping it, in which case you need to get your ass to work. 
 
-prevent timeout computational time penalties by killing simulations where the fitness does not increase for X frames
-there is that annoying collision bug. Might have to add a collision reporter (?) in box2d to catch every single collision
-make it faster by profiling it with cprofile
-maybe if you implement a continuous gate reward function the actor-critic network will work?
-checkpoint size growth bug, use recursive getsizeof() function to pinpoint it.
-Overflow bug
-auto-set frame limits (simulation time) based on % completion
-NN visualizer
-gate-skipping when crashbad disabled bug
-gates per point bug/ incompatability with old/new tracks (5 GPP vs 20)
-move pygame and graphics to separate class
-make Drifter and MPDrifter inherit from the same base class so you dont have to keep copying over changes
+prevent timeout computational time penalties by killing simulations where the fitness does not increase for X frames  
+there is that annoying collision bug. Might have to add a collision reporter (?) in box2d to catch every single collision  
+make it faster by profiling it with cprofile  
+maybe if you implement a continuous gate reward function the actor-critic network will work?  
+checkpoint size growth bug, use recursive getsizeof() function to pinpoint it.  
+Overflow bug  
+auto-set frame limits (simulation time) based on % completion  
+NN visualizer  
+gate-skipping when crashbad disabled bug  
+gates per point bug/ incompatability with old/new tracks (5 GPP vs 20)  
+move pygame and graphics to separate class  
+make Drifter and MPDrifter inherit from the same base class so you dont have to keep copying over changes  
+weird bug where training stops until i type any letter into the command line. there shouldnt be any inputs or breaklines. Might have something to do with hitting 's' on an unresponsive window  
 
 
 ## License
