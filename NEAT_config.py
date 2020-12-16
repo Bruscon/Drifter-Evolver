@@ -34,22 +34,22 @@ compatibility_weight_coefficient   = 0.5
 
 # connection add/remove rates
 conn_add_prob           = 0.1
-conn_delete_prob        = 0.1
+conn_delete_prob        = 0.11
 
 # connection enable options
 enabled_default         = True
 enabled_mutate_rate     = 0.05
 
 feed_forward            = False
-initial_connection      = partial_direct .4
+initial_connection      = partial_direct .1
 
 # node add/remove rates
 node_add_prob           = 0.1
-node_delete_prob        = 0.1
+node_delete_prob        = 0.11
 
 # network parameters
-num_hidden              = 23
-num_inputs              = 23
+num_hidden              = 30
+num_inputs              = 21
 num_outputs             = 4
 
 # node response options

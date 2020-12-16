@@ -41,7 +41,7 @@ class MPDrifter:
         self.PPM = 10.0  # pixels per meter
         self.SCREEN_WIDTH, self.SCREEN_HEIGHT = 1300, 700
 
-        self.max_steps_per_episode = 1000
+        self.max_steps_per_episode = 2000
         self.stats = { 'pop': 200}
         
         self.pressed_keys = []
@@ -54,7 +54,7 @@ class MPDrifter:
         
         #for whiskers
         #         angles, lengths, intercept, normal dot direction 
-        angles = [0, 7*np.pi/8, -7*np.pi/8, np.pi/2, -np.pi/2, *[float(x) for x in np.split(np.linspace(-np.pi/4, np.pi/4, 6), 6)]]
+        angles = [ 7*np.pi/8, -7*np.pi/8, np.pi/2, -np.pi/2, *[float(x) for x in np.split(np.linspace(-np.pi/5, np.pi/5, 6), 6)]]
         self.rays = np.array([[x, 130, 100, 0] for x in angles])
         
         #self.init_track(*self.track)
@@ -156,6 +156,12 @@ class MPDrifter:
                 if self.car.contacts[0].contact.touching: #AABB collision bug fix, keep it
                     self.car_color = 'red'
                     flags.append('crashed')
+    
+    
+        #Testing new idea: speed reward
+        speed_reward = max( 0 , self.car.GetWorldVector((1,0)).dot(self.car.linearVelocity)/40) 
+        reward += speed_reward
+    
     
         self.world.Step(self.TIME_STEP, 2, 2)
         return self.get_state(), reward, flags
@@ -332,10 +338,14 @@ class MPDrifter:
     
     def new_runtime(self, arg):
         self.max_steps_per_episode = int(arg[0])
+        '''Theres a glitch somwhere in here. everything hangs sometimes when
+        I change the runtime int he middle of a run. seems to only affect 
+        runs that have been going a while. 
+        '''
         
     def new_config(self,args):
         '''not implemented yet'''
-        pass
+        pass 
     
     def set_crashbad(self, args):
         if args[0].lower() in ['1','true','t','yes']:

@@ -84,7 +84,9 @@ def run(config_path):
             dft.mstep()
 
     # Create the population, which is the top-level object for a NEAT run.
-    p = neat.Population(config)
+    #p = neat.Population(config)
+    #turns out its really easy to restore an old checkpoint...
+    p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-2199')
     
     # Add a stdout reporter to show progress in the terminal.
     p.add_reporter(neat.StdOutReporter(True))
