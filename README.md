@@ -53,7 +53,7 @@ If you foolishly choose to ignore this warning, maybe this will help lessen the 
   * Numpy
   * Neat (you’ll find it on google under “neat-python”)
 
-2. I had to heavily modify the multiprocessing part of the neat library file to make multiprocessing work. You will need to find your neat-python installation and manually replace the files 'parallel.py' and 'population.py' with the versions found here in this repository
+2. I had to heavily modify the multiprocessing part of the neat library file to make multiprocessing work. At the time of writing, neat-python's own multiprocessing example did not execute. You will need to find your neat-python installation and manually replace the files 'parallel.py' and 'population.py' with the versions found here in this repository
 
 ## Bugs and Todo:
 
