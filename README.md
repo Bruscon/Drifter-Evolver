@@ -2,6 +2,8 @@
 
 NEAT_Drifter is a machine learning application that aims to teach a 2d car to drive in an aribtrary hand-drawn racecourse faster than a human driver can.
 
+<img src="pics/run.gif" width="700">
+
 The [NEAT (Neuro-Evolution of Augmented Topologies)](http://nn.cs.utexas.edu/downloads/papers/stanley.cec02.pdf) genetic algorithm is used to train a dense [recurrent Neural Network](https://en.wikipedia.org/wiki/Recurrent_neural_network) to drive the vehicle in a [Box2D physics environment](https://en.wikipedia.org/wiki/Box2D) with [Pygame graphics](https://www.pygame.org/news). It is fully multi-processed and will take advantage of all of your CPU cores to compute generations.
 
 ## Description
