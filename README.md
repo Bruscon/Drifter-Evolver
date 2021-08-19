@@ -57,7 +57,7 @@ If you foolishly choose to ignore this warning, maybe this will help lessen the 
 
 ## Bugs and Todo:
 
-This section isnt relevant to you unless youre Nick coming back to this project months after dropping it, in which case get your ass to work son 
+This section isnt relevant to you unless you're Nick coming back to this project months after dropping it
 
 move pygame and graphics to separate class, this should make main window much more responsive
 prevent timeout computational time penalties by killing simulations where the fitness does not increase for X frames  
