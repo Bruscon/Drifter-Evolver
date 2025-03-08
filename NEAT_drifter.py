@@ -15,9 +15,10 @@ import TrackGen
 import pickle
 import random
 import ntools
+import atexit
 
 # Import process cleanup utilities
-from process_cleanup import processes, q, cleanup_processes
+from process_cleanup import processes, q, r, cleanup_processes
 
 def send_to_subprocesses(command):
     """Send a command to all subprocesses."""
@@ -72,11 +73,13 @@ def run(config_path):
             
     # Set up multiprocessing
     num_workers = max(2, mp.cpu_count() - 2)
-    global processes, q
+    global processes, q, r
     processes.clear()  # Clear any existing processes 
     drifters = []
+    
+    # Create task and result queues with a context manager
     q = mp.Queue()  # Tasks queue
-    r = mp.Queue()  # Results queue, a fitness score will come out of here
+    r = mp.Queue()  # Results queue
     
     # Create worker processes
     for i in range(num_workers):
@@ -141,10 +144,11 @@ def run(config_path):
     except KeyboardInterrupt:
         print("\nInterrupted by user. Cleaning up...")
         cleanup_processes()
+        sys.exit(0)  # Force exit
     except Exception as e:
         print(f"\nError occurred: {e}. Cleaning up...")
         cleanup_processes()
-        raise
+        sys.exit(1)  # Force exit with error code
 
 
 if __name__ == '__main__':
@@ -154,9 +158,10 @@ if __name__ == '__main__':
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'NEAT_config.py')
     
+    # Make sure we exit properly even if there's an exception
     try:
         run(config_path)
-    finally:
-        # This ensures cleanup happens even if there's an unhandled exception
-        # Though atexit should handle this anyway, it's a good backup
+    except:
         cleanup_processes()
+        # Force exit to make sure we don't hang
+        os._exit(1)
