@@ -2,6 +2,8 @@
 
 NEAT_Drifter is a machine learning application that aims to teach a 2d car to drive in an aribtrary hand-drawn racecourse faster than a human driver can.
 
+<img src="pics/run.gif" width="700">
+
 The [NEAT (Neuro-Evolution of Augmented Topologies)](http://nn.cs.utexas.edu/downloads/papers/stanley.cec02.pdf) genetic algorithm is used to train a dense [recurrent Neural Network](https://en.wikipedia.org/wiki/Recurrent_neural_network) to drive the vehicle in a [Box2D physics environment](https://en.wikipedia.org/wiki/Box2D) with [Pygame graphics](https://www.pygame.org/news). It is fully multi-processed and will take advantage of all of your CPU cores to compute generations.
 
 ## Description
@@ -53,11 +55,11 @@ If you foolishly choose to ignore this warning, maybe this will help lessen the 
   * Numpy
   * Neat (you’ll find it on google under “neat-python”)
 
-2. I had to heavily modify the multiprocessing part of the neat library file to make multiprocessing work. You will need to find your neat-python installation and manually replace the files 'parallel.py' and 'population.py' with the versions found here in this repository
+2. I had to heavily modify the multiprocessing part of the neat library file to make multiprocessing work. At the time of writing, neat-python's own multiprocessing example did not execute. You will need to find your neat-python installation and manually replace the files 'parallel.py' and 'population.py' with the versions found here in this repository
 
 ## Bugs and Todo:
 
-This section isnt relevant to you unless youre Nick coming back to this project months after dropping it, in which case get your ass to work son 
+This section isnt relevant to you unless you're Nick coming back to this project months after dropping it
 
 move pygame and graphics to separate class, this should make main window much more responsive
 prevent timeout computational time penalties by killing simulations where the fitness does not increase for X frames  
